@@ -1,8 +1,8 @@
 interface GameHUDProps {
   timeLeft: number
   totalTime: number
-  alignedCount: number
-  totalGears: number
+  currentTime: string
+  targetTime: string
   soundEnabled: boolean
   onToggleSound: () => void
 }
@@ -10,8 +10,8 @@ interface GameHUDProps {
 function GameHUD({
   timeLeft,
   totalTime,
-  alignedCount,
-  totalGears,
+  currentTime,
+  targetTime,
   soundEnabled,
   onToggleSound,
 }: GameHUDProps) {
@@ -41,12 +41,20 @@ function GameHUD({
           {soundEnabled ? '🔊' : '🔇'}
         </button>
         <div className="progress-panel">
-          <div className="progress-label">齿轮对齐</div>
-          <div className="progress-value">{alignedCount}/{totalGears}</div>
+          <div className="timer-label">当前时刻</div>
+          <div className="timer-value" style={{ color: '#e8d5a3' }}>
+            {currentTime}
+          </div>
+          <div className="timer-label" style={{ marginTop: '0.4rem' }}>
+            目标时刻
+          </div>
+          <div className="timer-value" style={{ color: '#7ec97e' }}>
+            {targetTime}
+          </div>
         </div>
       </div>
       <div className="hint-panel">
-        点击齿轮左半边逆时针旋转，右半边顺时针旋转 · 联动齿轮反向转动
+        点击齿轮左半边倒退时间，右半边推进时间 · 大齿轮±60分、中齿轮±15分、小齿轮±5分
       </div>
     </div>
   )

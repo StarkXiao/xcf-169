@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import type { GearConfig } from './GearSystem'
+import type { ClockTime } from '../types'
 
 export const GEAR_CONFIGS: GearConfig[] = [
   { id: 0, x: 0.5, y: 0.5, size: 'large', connectedTo: [1, 2] },
@@ -9,7 +10,7 @@ export const GEAR_CONFIGS: GearConfig[] = [
   { id: 4, x: 0.8, y: 0.7, size: 'small', connectedTo: [2] },
 ]
 
-export const TOTAL_TIME = 90
+export const TOTAL_TIME = 120
 export const GEAR_SIZES = {
   large: 90,
   medium: 65,
@@ -23,6 +24,15 @@ export class MainScene extends Phaser.Scene {
   private onGearClick?: (gearId: number, direction: 1 | -1) => void
   private scaleFactor = 1
   public alignedCache: Map<number, boolean> = new Map()
+
+  private clockCenterX = 0
+  private clockCenterY = 0
+  private clockRadius = 0
+  private hourHand!: Phaser.GameObjects.Graphics
+  private minuteHand!: Phaser.GameObjects.Graphics
+  private targetHourMarker!: Phaser.GameObjects.Graphics
+  private targetMinuteMarker!: Phaser.GameObjects.Graphics
+  private targetTimeText!: Phaser.GameObjects.Text
 
   constructor() {
     super('MainScene')
@@ -38,11 +48,17 @@ export class MainScene extends Phaser.Scene {
     const { width, height } = this.scale
     this.scaleFactor = Math.min(width / 800, height / 600)
 
+    this.clockCenterX = width / 2
+    this.clockCenterY = height / 2
+    this.clockRadius = Math.min(width, height) * 0.42
+
     this.createBackground()
     this.createRain()
     this.createLightning()
-    this.createGears()
     this.createClockFace()
+    this.createClockHands()
+    this.createTargetMarkers()
+    this.createGears()
     this.startLightningLoop()
   }
 
@@ -83,10 +99,9 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createClockFace() {
-    const { width, height } = this.scale
-    const cx = width / 2
-    const cy = height / 2
-    const radius = Math.min(width, height) * 0.42
+    const cx = this.clockCenterX
+    const cy = this.clockCenterY
+    const radius = this.clockRadius
 
     const face = this.add.graphics()
     face.lineStyle(6, 0x5a4a32, 0.7)
@@ -94,6 +109,10 @@ export class MainScene extends Phaser.Scene {
 
     face.lineStyle(3, 0x3d3222, 0.5)
     face.strokeCircle(cx, cy, radius - 15)
+
+    const innerBg = this.add.graphics()
+    innerBg.fillStyle(0x0f0f18, 0.9)
+    innerBg.fillCircle(cx, cy, radius - 20)
 
     for (let i = 0; i < 12; i++) {
       const angle = (Phaser.Math.DegToRad(i * 30)) - Math.PI / 2
@@ -112,6 +131,169 @@ export class MainScene extends Phaser.Scene {
       mark.moveTo(x1, y1)
       mark.lineTo(x2, y2)
       mark.strokePath()
+
+      if (isMain) {
+        const hourNum = i === 0 ? 12 : i
+        const numR = radius - 60
+        const nx = cx + Math.cos(angle) * numR
+        const ny = cy + Math.sin(angle) * numR
+        this.add.text(nx, ny, hourNum.toString(), {
+          fontFamily: 'Georgia, serif',
+          fontSize: `${20 * this.scaleFactor}px`,
+          color: '#c9a96a',
+          align: 'center',
+        }).setOrigin(0.5)
+      }
+    }
+
+    for (let i = 0; i < 60; i++) {
+      if (i % 5 === 0) continue
+      const angle = (Phaser.Math.DegToRad(i * 6)) - Math.PI / 2
+      const innerR = radius - 24
+      const outerR = radius - 18
+      const x1 = cx + Math.cos(angle) * innerR
+      const y1 = cy + Math.sin(angle) * innerR
+      const x2 = cx + Math.cos(angle) * outerR
+      const y2 = cy + Math.sin(angle) * outerR
+
+      const mark = this.add.graphics()
+      mark.lineStyle(1, 0x5a4a32, 0.6)
+      mark.beginPath()
+      mark.moveTo(x1, y1)
+      mark.lineTo(x2, y2)
+      mark.strokePath()
+    }
+  }
+
+  private createClockHands() {
+    this.hourHand = this.add.graphics()
+    this.minuteHand = this.add.graphics()
+
+    const center = this.add.graphics()
+    center.fillStyle(0xc9a96a, 1)
+    center.fillCircle(this.clockCenterX, this.clockCenterY, 8)
+    center.lineStyle(2, 0x8b7355, 1)
+    center.strokeCircle(this.clockCenterX, this.clockCenterY, 8)
+
+    this.updateClockHands({ hours: 12, minutes: 0 }, true)
+  }
+
+  private createTargetMarkers() {
+    this.targetHourMarker = this.add.graphics()
+    this.targetMinuteMarker = this.add.graphics()
+    this.targetMinuteMarker.setDepth(5)
+    this.targetHourMarker.setDepth(4)
+
+    const { width } = this.scale
+    this.targetTimeText = this.add.text(width / 2, 80, '', {
+      fontFamily: 'Georgia, serif',
+      fontSize: `${22 * this.scaleFactor}px`,
+      color: '#7ec97e',
+      align: 'center',
+      fontStyle: 'bold',
+    }).setOrigin(0.5)
+    this.targetTimeText.setDepth(10)
+  }
+
+  setTargetTime(time: ClockTime) {
+    const cx = this.clockCenterX
+    const cy = this.clockCenterY
+    const radius = this.clockRadius
+
+    this.targetHourMarker.clear()
+    this.targetMinuteMarker.clear()
+
+    const hourAngle = ((time.hours % 12) * 30 + time.minutes * 0.5 - 90) * Math.PI / 180
+    const minuteAngle = (time.minutes * 6 - 90) * Math.PI / 180
+
+    this.targetHourMarker.lineStyle(6, 0x7ec97e, 0.4)
+    this.targetHourMarker.beginPath()
+    this.targetHourMarker.moveTo(cx, cy)
+    this.targetHourMarker.lineTo(
+      cx + Math.cos(hourAngle) * (radius - 80),
+      cy + Math.sin(hourAngle) * (radius - 80),
+    )
+    this.targetHourMarker.strokePath()
+
+    this.targetHourMarker.lineStyle(2, 0x7ec97e, 0.8)
+    this.targetHourMarker.strokeCircle(
+      cx + Math.cos(hourAngle) * (radius - 80),
+      cy + Math.sin(hourAngle) * (radius - 80),
+      6,
+    )
+
+    this.targetMinuteMarker.lineStyle(4, 0x7ec97e, 0.4)
+    this.targetMinuteMarker.beginPath()
+    this.targetMinuteMarker.moveTo(cx, cy)
+    this.targetMinuteMarker.lineTo(
+      cx + Math.cos(minuteAngle) * (radius - 40),
+      cy + Math.sin(minuteAngle) * (radius - 40),
+    )
+    this.targetMinuteMarker.strokePath()
+
+    this.targetMinuteMarker.lineStyle(2, 0x7ec97e, 0.8)
+    this.targetMinuteMarker.strokeCircle(
+      cx + Math.cos(minuteAngle) * (radius - 40),
+      cy + Math.sin(minuteAngle) * (radius - 40),
+      5,
+    )
+
+    const timeStr = `${time.hours}:${time.minutes.toString().padStart(2, '0')}`
+    this.targetTimeText.setText(`目标时刻：${timeStr}`)
+  }
+
+  updateClockHands(time: ClockTime, immediate = false) {
+    const cx = this.clockCenterX
+    const cy = this.clockCenterY
+    const radius = this.clockRadius
+
+    const hourAngle = ((time.hours % 12) * 30 + time.minutes * 0.5 - 90) * Math.PI / 180
+    const minuteAngle = (time.minutes * 6 - 90) * Math.PI / 180
+
+    const hourEndX = cx + Math.cos(hourAngle) * (radius - 80)
+    const hourEndY = cy + Math.sin(hourAngle) * (radius - 80)
+    const minuteEndX = cx + Math.cos(minuteAngle) * (radius - 40)
+    const minuteEndY = cy + Math.sin(minuteAngle) * (radius - 40)
+
+    const drawHands = () => {
+      this.hourHand.clear()
+      this.hourHand.lineStyle(10, 0xc9a96a, 1)
+      this.hourHand.beginPath()
+      this.hourHand.moveTo(cx, cy)
+      this.hourHand.lineTo(hourEndX, hourEndY)
+      this.hourHand.strokePath()
+
+      this.hourHand.lineStyle(4, 0xe8d5a3, 1)
+      this.hourHand.beginPath()
+      this.hourHand.moveTo(cx, cy)
+      this.hourHand.lineTo(hourEndX, hourEndY)
+      this.hourHand.strokePath()
+
+      this.minuteHand.clear()
+      this.minuteHand.lineStyle(6, 0xc9a96a, 1)
+      this.minuteHand.beginPath()
+      this.minuteHand.moveTo(cx, cy)
+      this.minuteHand.lineTo(minuteEndX, minuteEndY)
+      this.minuteHand.strokePath()
+
+      this.minuteHand.lineStyle(2, 0xe8d5a3, 1)
+      this.minuteHand.beginPath()
+      this.minuteHand.moveTo(cx, cy)
+      this.minuteHand.lineTo(minuteEndX, minuteEndY)
+      this.minuteHand.strokePath()
+    }
+
+    if (immediate) {
+      drawHands()
+    } else {
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 250,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onUpdate: drawHands,
+      })
+      drawHands()
     }
   }
 
@@ -128,22 +310,32 @@ export class MainScene extends Phaser.Scene {
     const radius = GEAR_SIZES[size] * this.scaleFactor
     const teethCount = size === 'large' ? 16 : size === 'medium' ? 12 : 8
     this.gearRadii.set(id, radius)
+    container.setDepth(20)
 
     const gearGraphic = this.add.graphics()
-    this.drawGear(gearGraphic, radius, teethCount)
+    this.drawGear(gearGraphic, radius, teethCount, size)
     container.add(gearGraphic)
 
     const marker = this.add.graphics()
-    marker.fillStyle(0xc9a96a, 1)
+    marker.fillStyle(size === 'large' ? 0xffa500 : size === 'medium' ? 0x87ceeb : 0x90ee90, 1)
     marker.fillCircle(0, -radius + 12, 6)
     container.add(marker)
 
-    const targetHint = this.add.graphics()
-    targetHint.lineStyle(2, 0x7ec97e, 0.5)
-    targetHint.beginPath()
-    targetHint.arc(0, 0, radius + 10, -Math.PI / 2 - 0.15, -Math.PI / 2 + 0.15)
-    targetHint.strokePath()
-    container.add(targetHint)
+    const labelText = size === 'large' ? '时' : size === 'medium' ? '刻' : '分'
+    const label = this.add.text(0, 0, labelText, {
+      fontFamily: 'Georgia, serif',
+      fontSize: size === 'large' ? '20px' : size === 'medium' ? '16px' : '14px',
+      color: '#e8d5a3',
+      fontStyle: 'bold',
+    }).setOrigin(0.5)
+    container.add(label)
+
+    const hint = this.add.text(0, radius + 20, size === 'large' ? '±60分' : size === 'medium' ? '±15分' : '±5分', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '11px',
+      color: '#8b7d5c',
+    }).setOrigin(0.5)
+    container.add(hint)
 
     const hitArea = this.add.zone(0, 0, radius * 2.5, radius * 2.5)
     hitArea.setInteractive({ useHandCursor: true })
@@ -158,13 +350,21 @@ export class MainScene extends Phaser.Scene {
     this.gearSprites.set(id, container)
   }
 
-  private drawGear(graphic: Phaser.GameObjects.Graphics, radius: number, teethCount: number) {
+  private drawGear(
+    graphic: Phaser.GameObjects.Graphics,
+    radius: number,
+    teethCount: number,
+    size: 'large' | 'medium' | 'small',
+  ) {
     graphic.clear()
     const toothDepth = radius * 0.12
     const toothWidth = (Math.PI * 2) / (teethCount * 2)
 
-    graphic.fillStyle(0x4a3f2a, 1)
-    graphic.lineStyle(2, 0x8b7355, 1)
+    const baseColor = size === 'large' ? 0x5a4020 : size === 'medium' ? 0x3a4055 : 0x3a5540
+    const borderColor = size === 'large' ? 0xc9a96a : size === 'medium' ? 0x8aa0cc : 0x8acc9a
+
+    graphic.fillStyle(baseColor, 1)
+    graphic.lineStyle(2, borderColor, 1)
 
     graphic.beginPath()
     for (let i = 0; i < teethCount; i++) {
@@ -187,18 +387,18 @@ export class MainScene extends Phaser.Scene {
     graphic.fillPath()
     graphic.strokePath()
 
-    graphic.fillStyle(0x2a2318, 1)
+    graphic.fillStyle(0x1a1a2e, 1)
     graphic.beginPath()
     graphic.arc(0, 0, radius * 0.3, 0, Math.PI * 2)
     graphic.fillPath()
 
-    graphic.lineStyle(3, 0x8b7355, 0.8)
+    graphic.lineStyle(3, borderColor, 0.8)
     graphic.strokeCircle(0, 0, radius * 0.3)
 
-    const spokeCount = sizeFromRadius(radius) === 'large' ? 6 : 4
+    const spokeCount = size === 'large' ? 6 : 4
     for (let i = 0; i < spokeCount; i++) {
       const angle = (i * Math.PI * 2) / spokeCount
-      graphic.lineStyle(3, 0x5a4a32, 0.7)
+      graphic.lineStyle(3, borderColor, 0.5)
       graphic.beginPath()
       graphic.moveTo(
         Math.cos(angle) * radius * 0.3,
@@ -303,22 +503,9 @@ export class MainScene extends Phaser.Scene {
     })
   }
 
-  highlightAligned(gearId: number, aligned: boolean) {
-    const container = this.gearSprites.get(gearId)
-    const radius = this.gearRadii.get(gearId)
-    if (!container || radius === undefined) return
-
-    const targetHint = container.list[2] as Phaser.GameObjects.Graphics
-    if (targetHint) {
-      targetHint.clear()
-      if (aligned) {
-        targetHint.lineStyle(3, 0x7ec97e, 1)
-        targetHint.strokeCircle(0, 0, radius + 15)
-      }
-    }
-  }
-
   playVictoryAnimation() {
+    this.cameras.main.flash(500, 200, 180, 100)
+
     this.gearSprites.forEach((container, id) => {
       this.time.delayedCall(id * 100, () => {
         this.tweens.add({
@@ -331,17 +518,24 @@ export class MainScene extends Phaser.Scene {
       })
     })
 
-    const { width, height } = this.scale
-    for (let i = 0; i < 20; i++) {
-      this.time.delayedCall(i * 50, () => {
-        const x = Phaser.Math.Between(width * 0.2, width * 0.8)
-        const y = Phaser.Math.Between(height * 0.2, height * 0.8)
-        const spark = this.add.circle(x, y, 4, 0xc9a96a, 1)
+    const cx = this.clockCenterX
+    const cy = this.clockCenterY
+    for (let i = 0; i < 36; i++) {
+      this.time.delayedCall(i * 30, () => {
+        const angle = (i / 36) * Math.PI * 2
+        const dist = this.clockRadius * 0.7
+        const x = cx + Math.cos(angle) * dist
+        const y = cy + Math.sin(angle) * dist
+        const spark = this.add.circle(x, y, 5, 0xffd700, 1)
+        spark.setDepth(50)
         this.tweens.add({
           targets: spark,
-          scale: { from: 1, to: 3 },
+          x: cx,
+          y: cy,
+          scale: { from: 1, to: 0 },
           alpha: { from: 1, to: 0 },
-          duration: 500,
+          duration: 600,
+          ease: Phaser.Math.Easing.Quadratic.In,
           onComplete: () => spark.destroy(),
         })
       })
@@ -360,10 +554,4 @@ export class MainScene extends Phaser.Scene {
       })
     })
   }
-}
-
-function sizeFromRadius(radius: number): 'large' | 'medium' | 'small' {
-  if (radius > 70) return 'large'
-  if (radius > 50) return 'medium'
-  return 'small'
 }

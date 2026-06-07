@@ -5,10 +5,14 @@ import { GearSystem } from './GearSystem'
 import { TimerSystem } from './TimerSystem'
 import { SoundManager } from './SoundManager'
 import GameHUD from '../ui/GameHUD'
-import type { GameResult } from '../types'
+import type { GameResult, ClockTime } from '../types'
 
 interface GameProps {
   onGameEnd: (result: GameResult) => void
+}
+
+function formatTimeStr(t: ClockTime): string {
+  return `${t.hours}:${t.minutes.toString().padStart(2, '0')}`
 }
 
 function Game({ onGameEnd }: GameProps) {
@@ -20,15 +24,16 @@ function Game({ onGameEnd }: GameProps) {
   const sceneRef = useRef<MainScene | null>(null)
 
   const [timeLeft, setTimeLeft] = useState(TOTAL_TIME)
-  const [alignedCount, setAlignedCount] = useState(0)
+  const [currentTime, setCurrentTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
+  const [targetTime, setTargetTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [gameEnded, setGameEnded] = useState(false)
 
-  const calculateScore = useCallback((aligned: number, total: number, remaining: number) => {
-    const baseScore = aligned * 100
+  const calculateScore = useCallback((remaining: number, diffMinutes: number) => {
+    const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
     const timeBonus = remaining * 5
-    const completionBonus = aligned === total ? 500 : 0
-    return baseScore + timeBonus + completionBonus
+    const perfectBonus = diffMinutes === 0 ? 1000 : 0
+    return Math.floor(accuracyBonus + timeBonus + perfectBonus)
   }, [])
 
   const handleGameEnd = useCallback((success: boolean) => {
@@ -42,10 +47,9 @@ function Game({ onGameEnd }: GameProps) {
 
     if (!gs || !timer || !sound) return
 
-    const aligned = gs.getAlignedCount()
-    const total = gs.getTotalCount()
     const remaining = timer.getTimeLeft()
-    const score = calculateScore(aligned, total, remaining)
+    const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
+    const score = calculateScore(remaining, diffMinutes)
 
     timer.stop()
     sound.playGameOver(success)
@@ -62,10 +66,8 @@ function Game({ onGameEnd }: GameProps) {
         success,
         score,
         timeLeft: remaining,
-        gearsAligned: aligned,
-        totalGears: total,
       })
-    }, 2500)
+    }, 3000)
   }, [gameEnded, onGameEnd, calculateScore])
 
   useEffect(() => {
@@ -99,19 +101,14 @@ function Game({ onGameEnd }: GameProps) {
 
     gearSystem.setOnGearRotate((id, angle) => {
       scene.updateGearAngle(id, angle)
-      const wasAligned = scene.alignedCache.get(id)
-      const isAlignedNow = gearSystem.isAligned(id)
-      if (isAlignedNow && !wasAligned) {
-        sound.playGearSnap()
-        scene.highlightAligned(id, true)
-      } else if (!isAlignedNow && wasAligned) {
-        scene.highlightAligned(id, false)
-      }
-      scene.alignedCache.set(id, isAlignedNow)
-      setAlignedCount(gearSystem.getAlignedCount())
     })
 
-    gearSystem.setOnAllAligned(() => {
+    gearSystem.setOnTimeChange((t) => {
+      setCurrentTime({ ...t })
+      scene.updateClockHands(t)
+    })
+
+    gearSystem.setOnTargetReached(() => {
       sound.playAlignSuccess()
       handleGameEnd(true)
     })
@@ -136,16 +133,20 @@ function Game({ onGameEnd }: GameProps) {
     const game = new Phaser.Game(config)
     gameRef.current = game
 
-    setAlignedCount(gearSystem.getAlignedCount())
-
-    const startTimer = () => {
+    const initScene = () => {
       if (scene.scene.isActive()) {
+        const curr = gearSystem.getCurrentTime()
+        const tgt = gearSystem.getTargetTime()
+        setCurrentTime({ ...curr })
+        setTargetTime({ ...tgt })
+        scene.updateClockHands(curr, true)
+        scene.setTargetTime(tgt)
         timer.start()
       } else {
-        setTimeout(startTimer, 100)
+        setTimeout(initScene, 100)
       }
     }
-    startTimer()
+    initScene()
 
     return () => {
       timer.destroy()
@@ -167,8 +168,8 @@ function Game({ onGameEnd }: GameProps) {
       <GameHUD
         timeLeft={timeLeft}
         totalTime={TOTAL_TIME}
-        alignedCount={alignedCount}
-        totalGears={GEAR_CONFIGS.length}
+        currentTime={formatTimeStr(currentTime)}
+        targetTime={formatTimeStr(targetTime)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
       />
