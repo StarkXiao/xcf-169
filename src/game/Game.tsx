@@ -5,8 +5,9 @@ import { GearSystem } from './GearSystem'
 import { TimerSystem } from './TimerSystem'
 import { SoundManager } from './SoundManager'
 import { NightPatrolSystem, NIGHT_PERIODS } from './NightPatrolSystem'
+import { workshopSystem } from './WorkshopSystem'
 import GameHUD from '../ui/GameHUD'
-import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType } from '../types'
+import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects } from '../types'
 
 interface GameProps {
   onGameEnd: (result: GameResult) => void
@@ -46,6 +47,9 @@ function Game({ onGameEnd, mode }: GameProps) {
   })
   const [faults, setFaults] = useState<ActiveGearFault[]>([])
   const [currentScore, setCurrentScore] = useState(0)
+  const [workshopEffects, setWorkshopEffects] = useState<WorkshopEffects>(
+    workshopSystem.getEffects(),
+  )
 
   const calculateClassicScore = useCallback((remaining: number, diffMinutes: number) => {
     const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
@@ -153,19 +157,20 @@ function Game({ onGameEnd, mode }: GameProps) {
     if (isPatrolMode && patrol) {
       if (!success) {
         scene?.playFailureAnimation()
-        setTimeout(() => {
-          const breakdown = patrol.getScoreBreakdown()
-          onGameEnd({
-            success: false,
-            score: breakdown.total,
-            timeLeft: 0,
-            isPatrolMode: true,
-            periodsCleared: patrol.getPeriodsCleared(),
-            totalPeriods: patrol.getTotalPeriods(),
-            patrolScoreBreakdown: breakdown,
-          })
-        }, 2500)
       }
+      setTimeout(() => {
+        const breakdown = patrol.getScoreBreakdown()
+        workshopSystem.recordGameScore(breakdown.total)
+        onGameEnd({
+          success,
+          score: breakdown.total,
+          timeLeft: success ? remaining : 0,
+          isPatrolMode: true,
+          periodsCleared: patrol.getPeriodsCleared(),
+          totalPeriods: patrol.getTotalPeriods(),
+          patrolScoreBreakdown: breakdown,
+        })
+      }, 2500)
       return
     }
 
@@ -178,6 +183,7 @@ function Game({ onGameEnd, mode }: GameProps) {
 
     const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
     const score = calculateClassicScore(remaining, diffMinutes)
+    workshopSystem.recordGameScore(score)
 
     setTimeout(() => {
       onGameEnd({
@@ -205,6 +211,12 @@ function Game({ onGameEnd, mode }: GameProps) {
       gearSystem.setPatrolMode(patrol)
       gearSystem.regenerateTargetTimeForPatrol()
     }
+
+    const initEffects = workshopSystem.getEffects()
+    gearSystem.setWorkshopEffects(initEffects)
+    sound.setGearMaterial(workshopSystem.getCurrentMaterial())
+    sound.setEnhancedFeedback(initEffects.enhancedFeedback)
+    setWorkshopEffects(initEffects)
 
     sound.playRain(isPatrolMode ? NIGHT_PERIODS[0].weather.rain : 'light')
     if (isPatrolMode) {
@@ -284,6 +296,9 @@ function Game({ onGameEnd, mode }: GameProps) {
 
     const initScene = () => {
       if (scene.scene.isActive()) {
+        scene.setGearMaterial(workshopSystem.getCurrentMaterial())
+        scene.setWorkshopEffects(initEffects)
+
         const curr = gearSystem.getCurrentTime()
         const tgt = gearSystem.getTargetTime()
         setCurrentTime({ ...curr })
@@ -356,6 +371,7 @@ function Game({ onGameEnd, mode }: GameProps) {
         weather={weather}
         faults={faults}
         score={currentScore}
+        workshopEffects={workshopEffects}
       />
     </div>
   )

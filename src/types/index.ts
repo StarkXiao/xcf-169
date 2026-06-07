@@ -68,3 +68,57 @@ export interface PatrolScoreBreakdown {
   faultPenalty: number
   total: number
 }
+
+export type GearMaterial = 'brass' | 'steel' | 'silver' | 'gold' | 'platinum'
+
+export interface GearMaterialConfig {
+  id: GearMaterial
+  name: string
+  displayName: string
+  unlockScore: number
+  efficiencyMultiplier: number
+  toleranceBonus: number
+  visual: {
+    baseColor: number
+    borderColor: number
+    glowColor: string
+  }
+  audio: {
+    rotateFreq: number
+    snapFreq: number
+    waveform: OscillatorType
+  }
+  description: string
+}
+
+export type CalibrationTool = 'magnifier' | 'lubricant' | 'metronome' | 'telescope'
+
+export interface CalibrationToolConfig {
+  id: CalibrationTool
+  name: string
+  displayName: string
+  icon: string
+  unlockScore: number
+  description: string
+  effect: {
+    type: 'tolerance' | 'faultResist' | 'feedback' | 'targetHint'
+    value: number
+  }
+}
+
+export interface WorkshopState {
+  currentMaterial: GearMaterial
+  unlockedMaterials: GearMaterial[]
+  currentTools: CalibrationTool[]
+  unlockedTools: CalibrationTool[]
+  totalScoreEarned: number
+  bestScore: number
+}
+
+export interface WorkshopEffects {
+  efficiencyMultiplier: number
+  toleranceMinutes: number
+  faultResistanceChance: number
+  showTargetHint: boolean
+  enhancedFeedback: boolean
+}

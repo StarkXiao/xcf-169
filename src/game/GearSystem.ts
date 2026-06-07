@@ -1,4 +1,4 @@
-import type { ClockTime, GearFaultType } from '../types'
+import type { ClockTime, GearFaultType, WorkshopEffects } from '../types'
 import type { NightPatrolSystem } from './NightPatrolSystem'
 
 const SNAP_ANGLE = 45
@@ -7,6 +7,14 @@ export const GEAR_TIME_DELTAS = {
   large: 60,
   medium: 15,
   small: 5,
+}
+
+const DEFAULT_WORKSHOP_EFFECTS: WorkshopEffects = {
+  efficiencyMultiplier: 1.0,
+  toleranceMinutes: 0,
+  faultResistanceChance: 0,
+  showTargetHint: false,
+  enhancedFeedback: false,
 }
 
 export interface GearConfig {
@@ -43,6 +51,7 @@ export class GearSystem {
   private onFaultTriggered?: (gearId: number, faultType: GearFaultType) => void
   private patrolSystem: NightPatrolSystem | null = null
   private isPatrolMode = false
+  private workshopEffects: WorkshopEffects = DEFAULT_WORKSHOP_EFFECTS
 
   constructor(configs: GearConfig[]) {
     configs.forEach((config) => {
@@ -58,6 +67,14 @@ export class GearSystem {
 
     this.currentTime = this.generateRandomTime()
     this.targetTime = this.generateTargetTime(this.currentTime)
+  }
+
+  setWorkshopEffects(effects: WorkshopEffects): void {
+    this.workshopEffects = { ...effects }
+  }
+
+  getWorkshopEffects(): WorkshopEffects {
+    return { ...this.workshopEffects }
   }
 
   setPatrolMode(patrolSystem: NightPatrolSystem | null): void {
@@ -137,18 +154,25 @@ export class GearSystem {
     let multiplier = 1
     let reversed = false
     let slipped = false
+    const efficiency = this.workshopEffects.efficiencyMultiplier
+    const faultResist = this.workshopEffects.faultResistanceChance
 
     if (this.patrolSystem && this.isPatrolMode) {
-      const faultEffect = this.patrolSystem.applyFaultEffect(gearId, direction)
-      actualDirection = faultEffect.direction
-      skip = faultEffect.skip
-      multiplier = faultEffect.multiplier
+      const hasFault = this.patrolSystem.getGearFault(gearId) !== 'none'
+      const resistedFault = hasFault && Math.random() < faultResist
 
-      const faultType = this.patrolSystem.getGearFault(gearId)
-      if (faultType !== 'none') {
-        this.onFaultTriggered?.(gearId, faultType)
-        if (faultType === 'reverse') reversed = true
-        if (faultType === 'slip') slipped = true
+      if (!resistedFault) {
+        const faultEffect = this.patrolSystem.applyFaultEffect(gearId, direction)
+        actualDirection = faultEffect.direction
+        skip = faultEffect.skip
+        multiplier = faultEffect.multiplier
+
+        const faultType = this.patrolSystem.getGearFault(gearId)
+        if (faultType !== 'none') {
+          this.onFaultTriggered?.(gearId, faultType)
+          if (faultType === 'reverse') reversed = true
+          if (faultType === 'slip') slipped = true
+        }
       }
     }
 
@@ -160,11 +184,11 @@ export class GearSystem {
     gear.angle = this.normalizeAngle(gear.angle + delta)
     this.onGearRotate?.(gearId, gear.angle)
 
-    const timeDelta = gear.timeDelta * actualDirection * multiplier
+    const timeDelta = gear.timeDelta * actualDirection * multiplier * efficiency
     const finalTimeDelta = multiplier < 1
       ? (Math.random() < multiplier ? timeDelta / multiplier : 0)
       : timeDelta
-    this.advanceTime(Math.round(finalTimeDelta / (multiplier < 1 ? 1 : 1)))
+    this.advanceTime(Math.round(finalTimeDelta))
 
     gear.connectedTo.forEach((connectedId) => {
       const connected = this.gears.get(connectedId)
@@ -174,14 +198,19 @@ export class GearSystem {
         let connMultiplier = 1
 
         if (this.patrolSystem && this.isPatrolMode) {
-          const connFaultEffect = this.patrolSystem.applyFaultEffect(connectedId, connDirection)
-          connDirection = connFaultEffect.direction
-          connSkip = connFaultEffect.skip
-          connMultiplier = connFaultEffect.multiplier
+          const connHasFault = this.patrolSystem.getGearFault(connectedId) !== 'none'
+          const connResisted = connHasFault && Math.random() < faultResist
 
-          const connFaultType = this.patrolSystem.getGearFault(connectedId)
-          if (connFaultType !== 'none') {
-            this.onFaultTriggered?.(connectedId, connFaultType)
+          if (!connResisted) {
+            const connFaultEffect = this.patrolSystem.applyFaultEffect(connectedId, connDirection)
+            connDirection = connFaultEffect.direction
+            connSkip = connFaultEffect.skip
+            connMultiplier = connFaultEffect.multiplier
+
+            const connFaultType = this.patrolSystem.getGearFault(connectedId)
+            if (connFaultType !== 'none') {
+              this.onFaultTriggered?.(connectedId, connFaultType)
+            }
           }
         }
 
@@ -190,7 +219,7 @@ export class GearSystem {
           connected.angle = this.normalizeAngle(connected.angle + reverseDelta)
           this.onGearRotate?.(connectedId, connected.angle)
 
-          const connTimeDelta = connected.timeDelta * connDirection * connMultiplier
+          const connTimeDelta = connected.timeDelta * connDirection * connMultiplier * efficiency
           const finalConnTimeDelta = connMultiplier < 1
             ? (Math.random() < connMultiplier ? connTimeDelta / connMultiplier : 0)
             : connTimeDelta
@@ -208,7 +237,7 @@ export class GearSystem {
       skipped: false,
       reversed,
       slipped,
-      actualDelta: gear.timeDelta * actualDirection,
+      actualDelta: gear.timeDelta * actualDirection * efficiency,
     }
   }
 
@@ -227,10 +256,8 @@ export class GearSystem {
   }
 
   checkTargetReached(): boolean {
-    return (
-      this.currentTime.hours === this.targetTime.hours &&
-      this.currentTime.minutes === this.targetTime.minutes
-    )
+    const diff = this.getTimeDiffMinutes()
+    return diff <= this.workshopEffects.toleranceMinutes
   }
 
   getTimeDiffMinutes(): number {
@@ -239,6 +266,10 @@ export class GearSystem {
     let diff = Math.abs(curr - tgt)
     if (diff > 360) diff = 720 - diff
     return diff
+  }
+
+  getToleranceMinutes(): number {
+    return this.workshopEffects.toleranceMinutes
   }
 
   private normalizeAngle(angle: number): number {

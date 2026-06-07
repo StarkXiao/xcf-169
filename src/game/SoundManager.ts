@@ -1,4 +1,5 @@
-import type { WeatherIntensity } from '../types'
+import type { WeatherIntensity, GearMaterialConfig } from '../types'
+import { GEAR_MATERIALS } from './WorkshopSystem'
 
 const RAIN_INTENSITY_GAIN: Record<WeatherIntensity, number> = {
   calm: 0,
@@ -24,9 +25,19 @@ export class SoundManager {
   private rainGain: GainNode | null = null
   private windSource: AudioBufferSourceNode | null = null
   private windGain: GainNode | null = null
+  private currentMaterial: GearMaterialConfig = GEAR_MATERIALS[0]
+  private enhancedFeedback: boolean = false
 
   constructor() {
     this.initContext()
+  }
+
+  setGearMaterial(material: GearMaterialConfig): void {
+    this.currentMaterial = material
+  }
+
+  setEnhancedFeedback(enabled: boolean): void {
+    this.enhancedFeedback = enabled
   }
 
   private initContext(): void {
@@ -80,41 +91,75 @@ export class SoundManager {
   playGearRotate(): void {
     if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
 
+    const { rotateFreq, waveform } = this.currentMaterial.audio
+    const duration = 0.15
+    const baseVolume = 0.15
+
     const osc = this.audioContext.createOscillator()
     const gain = this.audioContext.createGain()
 
-    osc.type = 'square'
-    osc.frequency.setValueAtTime(180, this.audioContext.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(90, this.audioContext.currentTime + 0.15)
+    osc.type = waveform
+    osc.frequency.setValueAtTime(rotateFreq, this.audioContext.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(rotateFreq * 0.5, this.audioContext.currentTime + duration)
 
-    gain.gain.setValueAtTime(0.15, this.audioContext.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15)
+    gain.gain.setValueAtTime(baseVolume, this.audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration)
 
     osc.connect(gain)
     gain.connect(this.masterGain)
 
     osc.start()
-    osc.stop(this.audioContext.currentTime + 0.15)
+    osc.stop(this.audioContext.currentTime + duration)
+
+    if (this.enhancedFeedback) {
+      const harmonic = this.audioContext.createOscillator()
+      const hGain = this.audioContext.createGain()
+      harmonic.type = 'sine'
+      harmonic.frequency.setValueAtTime(rotateFreq * 2, this.audioContext.currentTime)
+      harmonic.frequency.exponentialRampToValueAtTime(rotateFreq, this.audioContext.currentTime + duration * 0.8)
+      hGain.gain.setValueAtTime(0.06, this.audioContext.currentTime)
+      hGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration * 0.8)
+      harmonic.connect(hGain)
+      hGain.connect(this.masterGain)
+      harmonic.start()
+      harmonic.stop(this.audioContext.currentTime + duration * 0.8)
+    }
   }
 
   playGearSnap(): void {
     if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
 
+    const { snapFreq, waveform } = this.currentMaterial.audio
+    const duration = 0.1
+
     const osc = this.audioContext.createOscillator()
     const gain = this.audioContext.createGain()
 
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(440, this.audioContext.currentTime)
-    osc.frequency.exponentialRampToValueAtTime(880, this.audioContext.currentTime + 0.08)
+    osc.type = waveform
+    osc.frequency.setValueAtTime(snapFreq, this.audioContext.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(snapFreq * 2, this.audioContext.currentTime + duration * 0.8)
 
     gain.gain.setValueAtTime(0.2, this.audioContext.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.1)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration)
 
     osc.connect(gain)
     gain.connect(this.masterGain)
 
     osc.start()
-    osc.stop(this.audioContext.currentTime + 0.1)
+    osc.stop(this.audioContext.currentTime + duration)
+
+    if (this.enhancedFeedback) {
+      const chime = this.audioContext.createOscillator()
+      const cGain = this.audioContext.createGain()
+      chime.type = 'triangle'
+      chime.frequency.setValueAtTime(snapFreq * 1.5, this.audioContext.currentTime + 0.02)
+      cGain.gain.setValueAtTime(0.08, this.audioContext.currentTime + 0.02)
+      cGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15)
+      chime.connect(cGain)
+      cGain.connect(this.masterGain)
+      chime.start(this.audioContext.currentTime + 0.02)
+      chime.stop(this.audioContext.currentTime + 0.15)
+    }
   }
 
   playGearFault(): void {

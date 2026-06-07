@@ -4,9 +4,10 @@ interface GameOverPanelProps {
   result: GameResult
   onRestart: () => void
   onBackToMenu?: () => void
+  onOpenWorkshop?: () => void
 }
 
-function GameOverPanel({ result, onRestart, onBackToMenu }: GameOverPanelProps) {
+function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop }: GameOverPanelProps) {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
@@ -108,6 +109,11 @@ function GameOverPanel({ result, onRestart, onBackToMenu }: GameOverPanelProps) 
         <button className="restart-btn" onClick={onRestart}>
           {isPatrol ? '再次巡夜' : '再次校时'}
         </button>
+        {onOpenWorkshop && (
+          <button className="restart-btn workshop-btn-overlay" onClick={onOpenWorkshop}>
+            🔧 升级装备
+          </button>
+        )}
         {onBackToMenu && (
           <button className="restart-btn menu-btn" onClick={onBackToMenu}>
             返回主菜单

@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import type { GearConfig } from './GearSystem'
-import type { ClockTime, WeatherState, WeatherIntensity, GearFaultType, NightPeriod } from '../types'
+import type { ClockTime, WeatherState, WeatherIntensity, GearFaultType, NightPeriod, GearMaterialConfig, WorkshopEffects } from '../types'
+import { workshopSystem, GEAR_MATERIALS } from './WorkshopSystem'
 
 export const GEAR_CONFIGS: GearConfig[] = [
   { id: 0, x: 0.5, y: 0.5, size: 'large', connectedTo: [1, 2] },
@@ -44,6 +45,7 @@ export class MainScene extends Phaser.Scene {
   private gearSprites: Map<number, Phaser.GameObjects.Container> = new Map()
   private gearFaultIndicators: Map<number, Phaser.GameObjects.Text> = new Map()
   private gearRadii: Map<number, number> = new Map()
+  private gearGraphicsMap: Map<number, Phaser.GameObjects.Graphics> = new Map()
   private lightningFlash: Phaser.GameObjects.Rectangle | null = null
   private onGearClick?: (gearId: number, direction: 1 | -1) => void
   private scaleFactor = 1
@@ -54,6 +56,16 @@ export class MainScene extends Phaser.Scene {
   private currentWeather: WeatherState = { rain: 'light', wind: 'light', lightning: 'calm' }
   private bgGradient: Phaser.GameObjects.Graphics | null = null
   private periodBanner: Phaser.GameObjects.Text | null = null
+  private gearMaterial: GearMaterialConfig = GEAR_MATERIALS[0]
+  private workshopEffects: WorkshopEffects = {
+    efficiencyMultiplier: 1.0,
+    toleranceMinutes: 0,
+    faultResistanceChance: 0,
+    showTargetHint: false,
+    enhancedFeedback: false,
+  }
+  private toleranceArc!: Phaser.GameObjects.Graphics
+  private targetHintGlow!: Phaser.GameObjects.Graphics
 
   private clockCenterX = 0
   private clockCenterY = 0
@@ -66,6 +78,29 @@ export class MainScene extends Phaser.Scene {
 
   constructor() {
     super('MainScene')
+  }
+
+  setGearMaterial(material: GearMaterialConfig): void {
+    this.gearMaterial = material
+    this.refreshAllGearVisuals()
+  }
+
+  setWorkshopEffects(effects: WorkshopEffects): void {
+    this.workshopEffects = { ...effects }
+    this.updateToleranceIndicator()
+    this.refreshAllGearVisuals()
+  }
+
+  private refreshAllGearVisuals(): void {
+    this.gearGraphicsMap.forEach((graphics, id) => {
+      const container = this.gearSprites.get(id)
+      if (!container) return
+      const gearConfig = GEAR_CONFIGS.find((g) => g.id === id)
+      if (!gearConfig) return
+      const radius = this.gearRadii.get(id) ?? GEAR_SIZES[gearConfig.size] * this.scaleFactor
+      const teethCount = gearConfig.size === 'large' ? 16 : gearConfig.size === 'medium' ? 12 : 8
+      this.drawGear(graphics, radius, teethCount, gearConfig.size)
+    })
   }
 
   setCallbacks(
@@ -82,6 +117,9 @@ export class MainScene extends Phaser.Scene {
     this.clockCenterY = height / 2
     this.clockRadius = Math.min(width, height) * 0.42
 
+    this.gearMaterial = workshopSystem.getCurrentMaterial()
+    this.workshopEffects = workshopSystem.getEffects()
+
     this.createBackground()
     this.createRain()
     this.createWind()
@@ -89,9 +127,24 @@ export class MainScene extends Phaser.Scene {
     this.createClockFace()
     this.createClockHands()
     this.createTargetMarkers()
+    this.createToleranceIndicator()
     this.createGears()
     this.createPeriodBanner()
     this.startLightningLoop()
+  }
+
+  private createToleranceIndicator(): void {
+    this.toleranceArc = this.add.graphics()
+    this.toleranceArc.setDepth(3)
+    this.targetHintGlow = this.add.graphics()
+    this.targetHintGlow.setDepth(6)
+    this.updateToleranceIndicator()
+  }
+
+  updateToleranceIndicator(): void {
+    if (!this.toleranceArc || !this.targetHintGlow) return
+    this.toleranceArc.clear()
+    this.targetHintGlow.clear()
   }
 
   private createBackground(period: NightPeriod = 'earlyNight') {
@@ -410,11 +463,17 @@ export class MainScene extends Phaser.Scene {
 
     this.targetHourMarker.clear()
     this.targetMinuteMarker.clear()
+    this.targetHintGlow?.clear()
 
     const hourAngle = ((time.hours % 12) * 30 + time.minutes * 0.5 - 90) * Math.PI / 180
     const minuteAngle = (time.minutes * 6 - 90) * Math.PI / 180
 
-    this.targetHourMarker.lineStyle(6, 0x7ec97e, 0.4)
+    const showHint = this.workshopEffects.showTargetHint
+    const hourMarkerAlpha = showHint ? 0.7 : 0.4
+    const minuteMarkerAlpha = showHint ? 0.7 : 0.4
+    const glowColor = this.gearMaterial.visual.borderColor
+
+    this.targetHourMarker.lineStyle(showHint ? 8 : 6, glowColor, hourMarkerAlpha)
     this.targetHourMarker.beginPath()
     this.targetHourMarker.moveTo(cx, cy)
     this.targetHourMarker.lineTo(
@@ -423,14 +482,14 @@ export class MainScene extends Phaser.Scene {
     )
     this.targetHourMarker.strokePath()
 
-    this.targetHourMarker.lineStyle(2, 0x7ec97e, 0.8)
+    this.targetHourMarker.lineStyle(3, glowColor, showHint ? 1.0 : 0.8)
     this.targetHourMarker.strokeCircle(
       cx + Math.cos(hourAngle) * (radius - 80),
       cy + Math.sin(hourAngle) * (radius - 80),
-      6,
+      showHint ? 10 : 6,
     )
 
-    this.targetMinuteMarker.lineStyle(4, 0x7ec97e, 0.4)
+    this.targetMinuteMarker.lineStyle(showHint ? 6 : 4, glowColor, minuteMarkerAlpha)
     this.targetMinuteMarker.beginPath()
     this.targetMinuteMarker.moveTo(cx, cy)
     this.targetMinuteMarker.lineTo(
@@ -439,15 +498,44 @@ export class MainScene extends Phaser.Scene {
     )
     this.targetMinuteMarker.strokePath()
 
-    this.targetMinuteMarker.lineStyle(2, 0x7ec97e, 0.8)
+    this.targetMinuteMarker.lineStyle(3, glowColor, showHint ? 1.0 : 0.8)
     this.targetMinuteMarker.strokeCircle(
       cx + Math.cos(minuteAngle) * (radius - 40),
       cy + Math.sin(minuteAngle) * (radius - 40),
-      5,
+      showHint ? 8 : 5,
     )
 
+    if (showHint && this.targetHintGlow) {
+      this.targetHintGlow.lineStyle(12, glowColor, 0.15)
+      this.targetHintGlow.beginPath()
+      this.targetHintGlow.moveTo(cx, cy)
+      this.targetHintGlow.lineTo(
+        cx + Math.cos(minuteAngle) * (radius - 30),
+        cy + Math.sin(minuteAngle) * (radius - 30),
+      )
+      this.targetHintGlow.strokePath()
+
+      this.targetHintGlow.fillStyle(glowColor, 0.1)
+      this.targetHintGlow.fillCircle(
+        cx + Math.cos(minuteAngle) * (radius - 40),
+        cy + Math.sin(minuteAngle) * (radius - 40),
+        20,
+      )
+    }
+
+    const tolerance = this.workshopEffects.toleranceMinutes
+    if (tolerance > 0 && this.toleranceArc) {
+      this.toleranceArc.clear()
+      this.toleranceArc.lineStyle(2, glowColor, 0.3)
+      const minuteSpanAngle = tolerance * 6 * Math.PI / 180
+      this.toleranceArc.beginPath()
+      this.toleranceArc.arc(cx, cy, radius - 25, minuteAngle - minuteSpanAngle, minuteAngle + minuteSpanAngle, false)
+      this.toleranceArc.strokePath()
+    }
+
     const timeStr = `${time.hours}:${time.minutes.toString().padStart(2, '0')}`
-    this.targetTimeText.setText(`目标时刻：${timeStr}`)
+    const toleranceStr = tolerance > 0 ? `（容差±${tolerance}分）` : ''
+    this.targetTimeText.setText(`目标时刻：${timeStr}${toleranceStr}`)
   }
 
   updateClockHands(time: ClockTime, immediate = false) {
@@ -521,6 +609,7 @@ export class MainScene extends Phaser.Scene {
     container.setDepth(20)
 
     const gearGraphic = this.add.graphics()
+    this.gearGraphicsMap.set(id, gearGraphic)
     this.drawGear(gearGraphic, radius, teethCount, size)
     container.add(gearGraphic)
 
@@ -650,8 +739,8 @@ export class MainScene extends Phaser.Scene {
     const toothDepth = radius * 0.12
     const toothWidth = (Math.PI * 2) / (teethCount * 2)
 
-    const baseColor = size === 'large' ? 0x5a4020 : size === 'medium' ? 0x3a4055 : 0x3a5540
-    const borderColor = size === 'large' ? 0xc9a96a : size === 'medium' ? 0x8aa0cc : 0x8acc9a
+    const baseColor = this.gearMaterial.visual.baseColor
+    const borderColor = this.gearMaterial.visual.borderColor
 
     graphic.fillStyle(baseColor, 1)
     graphic.lineStyle(2, borderColor, 1)
@@ -676,6 +765,11 @@ export class MainScene extends Phaser.Scene {
     graphic.closePath()
     graphic.fillPath()
     graphic.strokePath()
+
+    if (this.gearMaterial.id !== 'brass') {
+      graphic.lineStyle(1, borderColor, 0.25)
+      graphic.strokeCircle(0, 0, radius - toothDepth)
+    }
 
     graphic.fillStyle(0x1a1a2e, 1)
     graphic.beginPath()
@@ -707,6 +801,7 @@ export class MainScene extends Phaser.Scene {
     if (!container) return
 
     const targetRotation = Phaser.Math.DegToRad(angle)
+    const glowColor = this.gearMaterial.visual.borderColor
 
     this.tweens.add({
       targets: container,
@@ -714,6 +809,45 @@ export class MainScene extends Phaser.Scene {
       duration: 200,
       ease: Phaser.Math.Easing.Quadratic.Out,
     })
+
+    if (this.workshopEffects.enhancedFeedback) {
+      const x = container.x
+      const y = container.y
+      const radius = this.gearRadii.get(gearId) ?? 50
+
+      for (let i = 0; i < 6; i++) {
+        const particleAngle = (i / 6) * Math.PI * 2 + Math.random() * 0.5
+        const dist = radius * (0.6 + Math.random() * 0.4)
+        const px = x + Math.cos(particleAngle) * dist
+        const py = y + Math.sin(particleAngle) * dist
+
+        const spark = this.add.circle(px, py, 2 + Math.random() * 2, glowColor, 0.8)
+        spark.setDepth(30)
+
+        this.tweens.add({
+          targets: spark,
+          x: x + Math.cos(particleAngle) * dist * 1.5,
+          y: y + Math.sin(particleAngle) * dist * 1.5,
+          alpha: { from: 0.8, to: 0 },
+          scale: { from: 1, to: 0.3 },
+          duration: 350 + Math.random() * 150,
+          ease: Phaser.Math.Easing.Quadratic.Out,
+          onComplete: () => spark.destroy(),
+        })
+      }
+
+      const pulse = this.add.circle(x, y, radius * 0.8, glowColor, 0)
+      pulse.setDepth(15)
+      pulse.setStrokeStyle(2, glowColor, 0.4)
+      this.tweens.add({
+        targets: pulse,
+        scale: { from: 0.9, to: 1.2 },
+        alpha: { from: 0.4, to: 0 },
+        duration: 300,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onComplete: () => pulse.destroy(),
+      })
+    }
   }
 
   playVictoryAnimation() {

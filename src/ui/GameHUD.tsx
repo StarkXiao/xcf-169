@@ -1,5 +1,6 @@
-import type { WeatherState, ActiveGearFault, PeriodConfig } from '../types'
+import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects } from '../types'
 import { FAULT_DESCRIPTIONS, WEATHER_DESCRIPTIONS } from '../game/NightPatrolSystem'
+import { workshopSystem } from '../game/WorkshopSystem'
 
 interface GameHUDProps {
   timeLeft: number
@@ -15,6 +16,7 @@ interface GameHUDProps {
   weather?: WeatherState
   faults?: ActiveGearFault[]
   score?: number
+  workshopEffects?: WorkshopEffects
 }
 
 function GameHUD({
@@ -31,7 +33,11 @@ function GameHUD({
   weather = { rain: 'calm', wind: 'calm', lightning: 'calm' },
   faults = [],
   score = 0,
+  workshopEffects,
 }: GameHUDProps) {
+  const material = workshopSystem.getCurrentMaterial()
+  const activeTools = workshopSystem.getActiveToolConfigs()
+  const effects = workshopEffects ?? workshopSystem.getEffects()
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
@@ -115,10 +121,34 @@ function GameHUD({
         </div>
       )}
 
+      <div className="workshop-indicator">
+        <div className="gear-material-badge" style={{ borderColor: material.visual.glowColor }}>
+          <span className="badge-icon">⚙️</span>
+          <span className="badge-text">{material.displayName}</span>
+          {effects.efficiencyMultiplier !== 1.0 && (
+            <span className="badge-value">×{effects.efficiencyMultiplier.toFixed(2)}</span>
+          )}
+        </div>
+        {activeTools.length > 0 && (
+          <div className="active-tools-list">
+            {activeTools.map((t) => (
+              <span key={t.id} className="tool-badge" title={t.description}>
+                {t.icon}
+              </span>
+            ))}
+          </div>
+        )}
+        {effects.toleranceMinutes > 0 && (
+          <div className="tolerance-badge">
+            容差 ±{effects.toleranceMinutes}分
+          </div>
+        )}
+      </div>
+
       <div className="hint-panel">
         {isPatrolMode
           ? '钟楼巡夜：注意齿轮故障状态（卡滞无法转动、反转反向运转、打滑可能失效），按目标时刻校准大钟！'
-          : '点击齿轮左半边倒退时间，右半边推进时间 · 大齿轮±60分、中齿轮±15分、小齿轮±5分'}
+          : `点击齿轮左半边倒退时间，右半边推进时间 · 大齿轮±${Math.round(60 * effects.efficiencyMultiplier)}分、中齿轮±${Math.round(15 * effects.efficiencyMultiplier)}分、小齿轮±${Math.round(5 * effects.efficiencyMultiplier)}分`}
       </div>
     </div>
   )

@@ -1,14 +1,41 @@
 import type { GameMode } from '../types'
+import { workshopSystem } from '../game/WorkshopSystem'
 
 interface StartScreenProps {
   onStart: (mode: GameMode) => void
+  onOpenWorkshop: () => void
 }
 
-function StartScreen({ onStart }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop }: StartScreenProps) {
+  const totalScore = workshopSystem.getTotalScoreEarned()
+  const currentMaterial = workshopSystem.getCurrentMaterial()
+
+  const formatScore = (score: number) => {
+    if (score >= 10000) return `${(score / 10000).toFixed(1)}万`
+    if (score >= 1000) return `${(score / 1000).toFixed(1)}k`
+    return score.toString()
+  }
+
   return (
     <div className="start-screen">
       <h1 className="game-title">旧钟楼校时员</h1>
       <p className="game-subtitle">Clock Tower Timekeeper</p>
+
+      <div className="workshop-entry">
+        <div className="workshop-entry-info">
+          <span className="workshop-score">累计积分：{formatScore(totalScore)}</span>
+          <span
+            className="workshop-material-tag"
+            style={{ borderColor: currentMaterial.visual.glowColor, color: currentMaterial.visual.glowColor }}
+          >
+            ⚙️ {currentMaterial.displayName}
+          </span>
+        </div>
+        <button className="start-btn workshop-btn" onClick={onOpenWorkshop}>
+          🔧 钟表工坊
+        </button>
+      </div>
+
       <p className="story-text">
         暴雨夜，古老钟楼的齿轮错乱，时针分针停摆。<br />
         作为守钟人，你必须转动齿轮，<br />
