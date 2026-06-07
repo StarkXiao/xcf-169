@@ -1,4 +1,5 @@
-import type { ClockTime } from '../types'
+import type { ClockTime, GearFaultType } from '../types'
+import type { NightPatrolSystem } from './NightPatrolSystem'
 
 const SNAP_ANGLE = 45
 
@@ -17,6 +18,14 @@ export interface GearConfig {
   initialAngle?: number
 }
 
+export interface RotationResult {
+  applied: boolean
+  skipped: boolean
+  reversed: boolean
+  slipped: boolean
+  actualDelta: number
+}
+
 export class GearSystem {
   private gears: Map<number, {
     id: number
@@ -31,6 +40,9 @@ export class GearSystem {
   private onGearRotate?: (gearId: number, angle: number) => void
   private onTimeChange?: (time: ClockTime) => void
   private onTargetReached?: () => void
+  private onFaultTriggered?: (gearId: number, faultType: GearFaultType) => void
+  private patrolSystem: NightPatrolSystem | null = null
+  private isPatrolMode = false
 
   constructor(configs: GearConfig[]) {
     configs.forEach((config) => {
@@ -46,6 +58,21 @@ export class GearSystem {
 
     this.currentTime = this.generateRandomTime()
     this.targetTime = this.generateTargetTime(this.currentTime)
+  }
+
+  setPatrolMode(patrolSystem: NightPatrolSystem | null): void {
+    this.patrolSystem = patrolSystem
+    this.isPatrolMode = !!patrolSystem
+  }
+
+  setOnFaultTriggered(callback: (gearId: number, faultType: GearFaultType) => void): void {
+    this.onFaultTriggered = callback
+  }
+
+  regenerateTargetTimeForPatrol(): void {
+    if (this.patrolSystem) {
+      this.targetTime = this.patrolSystem.generateTargetTimeForPeriod(this.currentTime)
+    }
   }
 
   private generateRandomTime(): ClockTime {
@@ -87,6 +114,10 @@ export class GearSystem {
     return { ...this.targetTime }
   }
 
+  setTargetTime(time: ClockTime): void {
+    this.targetTime = { ...time }
+  }
+
   getGear(id: number) {
     return this.gears.get(id)
   }
@@ -95,32 +126,94 @@ export class GearSystem {
     return Array.from(this.gears.values())
   }
 
-  rotateGear(gearId: number, direction: 1 | -1): void {
+  rotateGear(gearId: number, direction: 1 | -1): RotationResult {
     const gear = this.gears.get(gearId)
-    if (!gear) return
+    if (!gear) {
+      return { applied: false, skipped: true, reversed: false, slipped: false, actualDelta: 0 }
+    }
 
-    const delta = SNAP_ANGLE * direction
+    let actualDirection = direction
+    let skip = false
+    let multiplier = 1
+    let reversed = false
+    let slipped = false
+
+    if (this.patrolSystem && this.isPatrolMode) {
+      const faultEffect = this.patrolSystem.applyFaultEffect(gearId, direction)
+      actualDirection = faultEffect.direction
+      skip = faultEffect.skip
+      multiplier = faultEffect.multiplier
+
+      const faultType = this.patrolSystem.getGearFault(gearId)
+      if (faultType !== 'none') {
+        this.onFaultTriggered?.(gearId, faultType)
+        if (faultType === 'reverse') reversed = true
+        if (faultType === 'slip') slipped = true
+      }
+    }
+
+    if (skip) {
+      return { applied: false, skipped: true, reversed, slipped, actualDelta: 0 }
+    }
+
+    const delta = SNAP_ANGLE * actualDirection
     gear.angle = this.normalizeAngle(gear.angle + delta)
     this.onGearRotate?.(gearId, gear.angle)
 
-    this.advanceTime(gear.timeDelta * direction)
+    const timeDelta = gear.timeDelta * actualDirection * multiplier
+    const finalTimeDelta = multiplier < 1
+      ? (Math.random() < multiplier ? timeDelta / multiplier : 0)
+      : timeDelta
+    this.advanceTime(Math.round(finalTimeDelta / (multiplier < 1 ? 1 : 1)))
 
     gear.connectedTo.forEach((connectedId) => {
       const connected = this.gears.get(connectedId)
       if (connected) {
-        const reverseDelta = -delta
-        connected.angle = this.normalizeAngle(connected.angle + reverseDelta)
-        this.onGearRotate?.(connectedId, connected.angle)
-        this.advanceTime(connected.timeDelta * -direction)
+        let connDirection = (-actualDirection) as 1 | -1
+        let connSkip = false
+        let connMultiplier = 1
+
+        if (this.patrolSystem && this.isPatrolMode) {
+          const connFaultEffect = this.patrolSystem.applyFaultEffect(connectedId, connDirection)
+          connDirection = connFaultEffect.direction
+          connSkip = connFaultEffect.skip
+          connMultiplier = connFaultEffect.multiplier
+
+          const connFaultType = this.patrolSystem.getGearFault(connectedId)
+          if (connFaultType !== 'none') {
+            this.onFaultTriggered?.(connectedId, connFaultType)
+          }
+        }
+
+        if (!connSkip) {
+          const reverseDelta = SNAP_ANGLE * connDirection
+          connected.angle = this.normalizeAngle(connected.angle + reverseDelta)
+          this.onGearRotate?.(connectedId, connected.angle)
+
+          const connTimeDelta = connected.timeDelta * connDirection * connMultiplier
+          const finalConnTimeDelta = connMultiplier < 1
+            ? (Math.random() < connMultiplier ? connTimeDelta / connMultiplier : 0)
+            : connTimeDelta
+          this.advanceTime(Math.round(finalConnTimeDelta))
+        }
       }
     })
 
     if (this.checkTargetReached()) {
       this.onTargetReached?.()
     }
+
+    return {
+      applied: true,
+      skipped: false,
+      reversed,
+      slipped,
+      actualDelta: gear.timeDelta * actualDirection,
+    }
   }
 
   private advanceTime(minutes: number): void {
+    if (minutes === 0) return
     let totalMinutes = this.currentTime.hours * 60 + this.currentTime.minutes
     totalMinutes += minutes
     totalMinutes = ((totalMinutes % 720) + 720) % 720

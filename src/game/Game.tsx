@@ -4,37 +4,128 @@ import { MainScene, GEAR_CONFIGS, TOTAL_TIME } from './MainScene'
 import { GearSystem } from './GearSystem'
 import { TimerSystem } from './TimerSystem'
 import { SoundManager } from './SoundManager'
+import { NightPatrolSystem, NIGHT_PERIODS } from './NightPatrolSystem'
 import GameHUD from '../ui/GameHUD'
-import type { GameResult, ClockTime } from '../types'
+import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType } from '../types'
 
 interface GameProps {
   onGameEnd: (result: GameResult) => void
+  mode: GameMode
 }
 
 function formatTimeStr(t: ClockTime): string {
   return `${t.hours}:${t.minutes.toString().padStart(2, '0')}`
 }
 
-function Game({ onGameEnd }: GameProps) {
+function Game({ onGameEnd, mode }: GameProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const gameRef = useRef<Phaser.Game | null>(null)
   const gearSystemRef = useRef<GearSystem | null>(null)
   const timerRef = useRef<TimerSystem | null>(null)
   const soundRef = useRef<SoundManager | null>(null)
   const sceneRef = useRef<MainScene | null>(null)
+  const patrolRef = useRef<NightPatrolSystem | null>(null)
 
-  const [timeLeft, setTimeLeft] = useState(TOTAL_TIME)
+  const isPatrolMode = mode === 'patrol'
+
+  const [timeLeft, setTimeLeft] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME)
+  const [totalTime, setTotalTime] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME)
   const [currentTime, setCurrentTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
   const [targetTime, setTargetTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [gameEnded, setGameEnded] = useState(false)
 
-  const calculateScore = useCallback((remaining: number, diffMinutes: number) => {
+  const [currentPeriod, setCurrentPeriod] = useState<PeriodConfig | null>(
+    isPatrolMode ? NIGHT_PERIODS[0] : null,
+  )
+  const [periodIndex, setPeriodIndex] = useState(0)
+  const [weather, setWeather] = useState<WeatherState>({
+    rain: 'calm',
+    wind: 'calm',
+    lightning: 'calm',
+  })
+  const [faults, setFaults] = useState<ActiveGearFault[]>([])
+  const [currentScore, setCurrentScore] = useState(0)
+
+  const calculateClassicScore = useCallback((remaining: number, diffMinutes: number) => {
     const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
     const timeBonus = remaining * 5
     const perfectBonus = diffMinutes === 0 ? 1000 : 0
     return Math.floor(accuracyBonus + timeBonus + perfectBonus)
   }, [])
+
+  const handlePeriodComplete = useCallback(() => {
+    const gs = gearSystemRef.current
+    const timer = timerRef.current
+    const sound = soundRef.current
+    const scene = sceneRef.current
+    const patrol = patrolRef.current
+    if (!gs || !timer || !sound || !scene || !patrol) return
+
+    const remaining = timer.getTimeLeft()
+    const diffMinutes = gs.getTimeDiffMinutes()
+
+    const baseScore = 500
+    const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
+    const timeBonus = remaining * 5
+    const periodBonus = 300 * (patrol.getPeriodIndex() + 1)
+
+    patrol.accumulatePeriodScore(baseScore, accuracyBonus, timeBonus, periodBonus)
+
+    const breakdown = patrol.getScoreBreakdown()
+    setCurrentScore(breakdown.total)
+
+    sound.playAlignSuccess()
+    sound.playBellChime()
+    scene.playVictoryAnimation()
+
+    const hasNext = patrol.advanceToNextPeriod()
+
+    if (!hasNext) {
+      setGameEnded(true)
+      timer.stop()
+      setTimeout(() => {
+        const finalBreakdown = patrol.getScoreBreakdown()
+        onGameEnd({
+          success: true,
+          score: finalBreakdown.total,
+          timeLeft: remaining,
+          isPatrolMode: true,
+          periodsCleared: patrol.getPeriodsCleared(),
+          totalPeriods: patrol.getTotalPeriods(),
+          patrolScoreBreakdown: finalBreakdown,
+        })
+      }, 2500)
+      return
+    }
+
+    setTimeout(() => {
+      const nextPeriod = patrol.getCurrentPeriod()
+      setCurrentPeriod(nextPeriod)
+      setPeriodIndex(patrol.getPeriodIndex())
+      setWeather(nextPeriod.weather)
+      setTotalTime(nextPeriod.duration)
+      setTimeLeft(nextPeriod.duration)
+
+      scene.setPeriodBackground(nextPeriod.id)
+      scene.setWeather(nextPeriod.weather)
+      scene.showPeriodBanner(`${nextPeriod.displayName} · ${nextPeriod.clockTime}`)
+      sound.playPeriodTransition()
+      sound.setWeatherAudio(nextPeriod.weather.rain, nextPeriod.weather.wind)
+
+      gs.regenerateTargetTimeForPatrol()
+      const newTarget = gs.getTargetTime()
+      setTargetTime({ ...newTarget })
+      scene.setTargetTime(newTarget)
+
+      const newFaults = patrol.generateFaults()
+      setFaults(newFaults)
+      scene.clearAllGearFaults()
+      newFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+
+      timer.restart(nextPeriod.duration)
+    }, 2000)
+  }, [onGameEnd])
 
   const handleGameEnd = useCallback((success: boolean) => {
     if (gameEnded) return
@@ -44,15 +135,32 @@ function Game({ onGameEnd }: GameProps) {
     const timer = timerRef.current
     const sound = soundRef.current
     const scene = sceneRef.current
+    const patrol = patrolRef.current
 
     if (!gs || !timer || !sound) return
 
     const remaining = timer.getTimeLeft()
-    const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
-    const score = calculateScore(remaining, diffMinutes)
-
     timer.stop()
     sound.playGameOver(success)
+
+    if (isPatrolMode && patrol) {
+      if (!success) {
+        scene?.playFailureAnimation()
+        setTimeout(() => {
+          const breakdown = patrol.getScoreBreakdown()
+          onGameEnd({
+            success: false,
+            score: breakdown.total,
+            timeLeft: 0,
+            isPatrolMode: true,
+            periodsCleared: patrol.getPeriodsCleared(),
+            totalPeriods: patrol.getTotalPeriods(),
+            patrolScoreBreakdown: breakdown,
+          })
+        }, 2500)
+      }
+      return
+    }
 
     if (success && scene) {
       sound.playBellChime()
@@ -61,6 +169,9 @@ function Game({ onGameEnd }: GameProps) {
       scene.playFailureAnimation()
     }
 
+    const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
+    const score = calculateClassicScore(remaining, diffMinutes)
+
     setTimeout(() => {
       onGameEnd({
         success,
@@ -68,19 +179,33 @@ function Game({ onGameEnd }: GameProps) {
         timeLeft: remaining,
       })
     }, 3000)
-  }, [gameEnded, onGameEnd, calculateScore])
+  }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode])
 
   useEffect(() => {
     if (!canvasRef.current) return
 
     const sound = new SoundManager()
     soundRef.current = sound
-    sound.playRain()
 
     const gearSystem = new GearSystem(GEAR_CONFIGS)
     gearSystemRef.current = gearSystem
 
-    const timer = new TimerSystem(TOTAL_TIME, {
+    const gearIds = GEAR_CONFIGS.map((g) => g.id)
+    let patrol: NightPatrolSystem | null = null
+    if (isPatrolMode) {
+      patrol = new NightPatrolSystem(gearIds)
+      patrolRef.current = patrol
+      gearSystem.setPatrolMode(patrol)
+      gearSystem.regenerateTargetTimeForPatrol()
+    }
+
+    sound.playRain(isPatrolMode ? NIGHT_PERIODS[0].weather.rain : 'light')
+    if (isPatrolMode) {
+      sound.playWind(NIGHT_PERIODS[0].weather.wind)
+    }
+
+    const initialDuration = isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME
+    const timer = new TimerSystem(initialDuration, {
       onTick: (t) => setTimeLeft(Math.ceil(t)),
       onWarning: () => sound.playTick(),
       onDanger: () => sound.playTick(),
@@ -94,8 +219,18 @@ function Game({ onGameEnd }: GameProps) {
     scene.setCallbacks(
       (gearId: number, direction: 1 | -1) => {
         if (gameEnded) return
-        sound.playGearRotate()
-        gearSystem.rotateGear(gearId, direction)
+        const result = gearSystem.rotateGear(gearId, direction)
+        if (result.skipped) {
+          sound.playGearFault()
+          scene.flashGearFault(gearId)
+          if (patrol) {
+            patrol.addFaultPenalty(15)
+          }
+        } else if (result.reversed || result.slipped) {
+          sound.playGearFault()
+        } else {
+          sound.playGearRotate()
+        }
       },
     )
 
@@ -109,8 +244,15 @@ function Game({ onGameEnd }: GameProps) {
     })
 
     gearSystem.setOnTargetReached(() => {
-      sound.playAlignSuccess()
-      handleGameEnd(true)
+      if (isPatrolMode) {
+        handlePeriodComplete()
+      } else {
+        handleGameEnd(true)
+      }
+    })
+
+    gearSystem.setOnFaultTriggered((gearId: number, _faultType: GearFaultType) => {
+      scene.flashGearFault(gearId)
     })
 
     scene.events.on('lightning', () => {
@@ -141,6 +283,32 @@ function Game({ onGameEnd }: GameProps) {
         setTargetTime({ ...tgt })
         scene.updateClockHands(curr, true)
         scene.setTargetTime(tgt)
+
+        if (isPatrolMode && patrol) {
+          const period = patrol.getCurrentPeriod()
+          scene.setPeriodBackground(period.id)
+          scene.setWeather(period.weather)
+          setWeather(period.weather)
+          scene.showPeriodBanner(`${period.displayName} · ${period.clockTime}`)
+
+          const initialFaults = patrol.generateFaults()
+          setFaults(initialFaults)
+          initialFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+
+          const interval = setInterval(() => {
+            const activeFaults = patrol.getActiveFaults().filter(
+              (f) => f.expiresAt > performance.now(),
+            )
+            setFaults(activeFaults)
+            activeFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+            patrol
+              .getActiveFaults()
+              .filter((f) => f.expiresAt <= performance.now())
+              .forEach((f) => scene.setGearFault(f.gearId, 'none'))
+          }, 1000)
+          ;(window as unknown as { _patrolFaultInterval?: number })._patrolFaultInterval = interval
+        }
+
         timer.start()
       } else {
         setTimeout(initScene, 100)
@@ -149,6 +317,8 @@ function Game({ onGameEnd }: GameProps) {
     initScene()
 
     return () => {
+      const interval = (window as unknown as { _patrolFaultInterval?: number })._patrolFaultInterval
+      if (interval) clearInterval(interval)
       timer.destroy()
       sound.destroy()
       game.destroy(true)
@@ -167,11 +337,18 @@ function Game({ onGameEnd }: GameProps) {
       <div ref={canvasRef} className="game-canvas" />
       <GameHUD
         timeLeft={timeLeft}
-        totalTime={TOTAL_TIME}
+        totalTime={totalTime}
         currentTime={formatTimeStr(currentTime)}
         targetTime={formatTimeStr(targetTime)}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
+        isPatrolMode={isPatrolMode}
+        period={currentPeriod}
+        periodIndex={periodIndex}
+        totalPeriods={isPatrolMode ? NIGHT_PERIODS.length : 0}
+        weather={weather}
+        faults={faults}
+        score={currentScore}
       />
     </div>
   )

@@ -64,7 +64,7 @@ html, body, #root {
 .game-subtitle {
   font-size: clamp(0.9rem, 3vw, 1.2rem);
   color: #8b7d5c;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   font-style: italic;
   letter-spacing: 0.05em;
 }
@@ -76,7 +76,7 @@ html, body, #root {
   color: #a09070;
   font-size: clamp(0.85rem, 2.5vw, 1rem);
   line-height: 1.8;
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .start-btn,
@@ -112,6 +112,80 @@ html, body, #root {
   transform: translateY(0);
 }
 
+.mode-selection {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.2rem 2rem;
+  min-width: 200px;
+}
+
+.mode-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+.mode-desc {
+  font-size: 0.85rem;
+  color: #a09070;
+  line-height: 1.5;
+  font-weight: normal;
+  letter-spacing: 0.02em;
+}
+
+.patrol-btn {
+  background: linear-gradient(180deg, #2a2d3d 0%, #1a1d2a 100%);
+  border-color: #5a6a8a;
+}
+
+.patrol-btn:hover {
+  background: linear-gradient(180deg, #3a3d4d 0%, #2a2d3a 100%);
+  border-color: #8aa0cc;
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 20px rgba(138, 160, 204, 0.2);
+}
+
+.patrol-hint {
+  max-width: 500px;
+  padding: 1rem 1.5rem;
+  background: rgba(26, 26, 46, 0.5);
+  border: 1px solid #3d3222;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.patrol-hint-title {
+  font-size: 0.95rem;
+  color: #c9a96a;
+  margin-bottom: 0.6rem;
+  font-weight: bold;
+}
+
+.patrol-hint-list {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.patrol-hint-desc {
+  font-size: 0.8rem;
+  color: #8b7d5c;
+}
+
 .result-title {
   font-size: clamp(1.8rem, 6vw, 3rem);
   margin-bottom: 1rem;
@@ -131,12 +205,13 @@ html, body, #root {
 .result-stats {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
-  margin: 2rem 0;
-  padding: 1.5rem 2.5rem;
+  gap: 0.6rem;
+  margin: 1.5rem 0;
+  padding: 1.2rem 2rem;
   background: rgba(26, 26, 46, 0.6);
   border: 1px solid #3d3222;
   border-radius: 8px;
+  min-width: 300px;
 }
 
 .stat-row {
@@ -144,6 +219,12 @@ html, body, #root {
   justify-content: space-between;
   gap: 2rem;
   font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+}
+
+.breakdown-row {
+  font-size: clamp(0.75rem, 2vw, 0.9rem);
+  opacity: 0.9;
+  padding-left: 0.5rem;
 }
 
 .stat-label {
@@ -194,6 +275,7 @@ html, body, #root {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
 }
 
 .timer-panel {
@@ -202,6 +284,27 @@ html, body, #root {
   border-radius: 8px;
   padding: 0.8rem 1.2rem;
   min-width: 140px;
+}
+
+.period-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid #3d3222;
+  gap: 0.6rem;
+}
+
+.period-name {
+  font-size: 0.85rem;
+  color: #c9a96a;
+  font-weight: bold;
+}
+
+.period-progress {
+  font-size: 0.8rem;
+  color: #8b7d5c;
 }
 
 .timer-label {
@@ -258,6 +361,108 @@ html, body, #root {
   font-weight: bold;
 }
 
+.patrol-status-panel {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  background: rgba(10, 10, 18, 0.85);
+  border: 2px solid #5a4a32;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.patrol-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.faults-row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+
+.status-label {
+  color: #8b7d5c;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.status-value {
+  color: #e8d5a3;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.score-multiplier {
+  color: #c9a96a;
+  font-size: 0.8rem;
+  font-weight: bold;
+  padding: 0.1rem 0.4rem;
+  background: rgba(201, 169, 106, 0.15);
+  border-radius: 3px;
+}
+
+.score-row {
+  border-top: 1px solid #3d3222;
+  padding-top: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.score-display {
+  font-size: 1.2rem;
+  color: #ffd700;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+}
+
+.faults-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.fault-tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-weight: bold;
+  text-align: left;
+}
+
+.fault-jam {
+  background: rgba(255, 100, 100, 0.2);
+  color: #ff8888;
+  border: 1px solid rgba(255, 100, 100, 0.4);
+}
+
+.fault-slip {
+  background: rgba(255, 170, 68, 0.2);
+  color: #ffaa44;
+  border: 1px solid rgba(255, 170, 68, 0.4);
+}
+
+.fault-reverse {
+  background: rgba(170, 136, 255, 0.2);
+  color: #aa88ff;
+  border: 1px solid rgba(170, 136, 255, 0.4);
+}
+
+.fault-freeze {
+  background: rgba(136, 221, 255, 0.2);
+  color: #88ddff;
+  border: 1px solid rgba(136, 221, 255, 0.4);
+}
+
 .hint-panel {
   position: absolute;
   bottom: 1.5rem;
@@ -295,4 +500,74 @@ html, body, #root {
 .sound-toggle:hover {
   border-color: #c9a96a;
   background: rgba(26, 26, 46, 0.9);
+}
+
+.button-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.menu-btn {
+  background: linear-gradient(180deg, #2a2a3a 0%, #1a1a2a 100%);
+  border-color: #5a5a72;
+  font-size: clamp(0.85rem, 2.5vw, 1rem);
+  padding: 0.8rem 2rem;
+}
+
+.menu-btn:hover {
+  background: linear-gradient(180deg, #3a3a4a 0%, #2a2a3a 100%);
+  border-color: #8a8aa2;
+}
+
+@media (max-width: 768px) {
+  .patrol-status-panel {
+    position: absolute;
+    top: auto;
+    left: 1rem;
+    right: 1rem;
+    bottom: 4.5rem;
+    transform: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    min-width: auto;
+    max-width: none;
+    padding: 0.5rem 0.8rem;
+    gap: 0.5rem;
+  }
+
+  .patrol-status-row {
+    font-size: 0.75rem;
+    gap: 0.3rem;
+  }
+
+  .score-row {
+    border-top: none;
+    padding-top: 0;
+    margin-top: 0;
+  }
+
+  .faults-row {
+    width: 100%;
+  }
+
+  .faults-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .hud-top {
+    gap: 0.5rem;
+  }
+
+  .timer-panel,
+  .progress-panel {
+    padding: 0.5rem 0.8rem;
+    min-width: 110px;
+  }
+
+  .timer-value {
+    font-size: 1.4rem;
+  }
 }

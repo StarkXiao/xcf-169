@@ -65,6 +65,11 @@ export class TimerSystem {
     this.dangerTriggered = false
   }
 
+  restart(newTotal?: number): void {
+    this.reset(newTotal)
+    this.start()
+  }
+
   stop(): void {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId)
@@ -91,6 +96,10 @@ export class TimerSystem {
 
   addTime(seconds: number): void {
     this.timeLeft = Math.min(this.totalTime, this.timeLeft + seconds)
+  }
+
+  subtractTime(seconds: number): void {
+    this.timeLeft = Math.max(0, this.timeLeft - seconds)
   }
 
   private tick = (): void => {

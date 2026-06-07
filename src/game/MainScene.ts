@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import type { GearConfig } from './GearSystem'
-import type { ClockTime } from '../types'
+import type { ClockTime, WeatherState, WeatherIntensity, GearFaultType, NightPeriod } from '../types'
 
 export const GEAR_CONFIGS: GearConfig[] = [
   { id: 0, x: 0.5, y: 0.5, size: 'large', connectedTo: [1, 2] },
@@ -17,13 +17,43 @@ export const GEAR_SIZES = {
   small: 45,
 }
 
+const WEATHER_RAIN_CONFIG: Record<WeatherIntensity, { quantity: number; speedY: [number, number]; speedX: [number, number]; alpha: [number, number] }> = {
+  calm: { quantity: 0, speedY: [0, 0], speedX: [0, 0], alpha: [0, 0] },
+  light: { quantity: 6, speedY: [300, 500], speedX: [-80, -30], alpha: [0.2, 0.5] },
+  moderate: { quantity: 12, speedY: [400, 650], speedX: [-120, -60], alpha: [0.3, 0.6] },
+  heavy: { quantity: 20, speedY: [500, 800], speedX: [-180, -100], alpha: [0.4, 0.8] },
+  storm: { quantity: 35, speedY: [600, 1000], speedX: [-250, -150], alpha: [0.5, 0.9] },
+}
+
+const WEATHER_LIGHTNING_CONFIG: Record<WeatherIntensity, { minDelay: number; maxDelay: number; intensity: number }> = {
+  calm: { minDelay: 999999, maxDelay: 999999, intensity: 0 },
+  light: { minDelay: 15000, maxDelay: 25000, intensity: 0.2 },
+  moderate: { minDelay: 8000, maxDelay: 15000, intensity: 0.35 },
+  heavy: { minDelay: 5000, maxDelay: 10000, intensity: 0.5 },
+  storm: { minDelay: 2500, maxDelay: 6000, intensity: 0.75 },
+}
+
+const PERIOD_BG_COLORS: Record<NightPeriod, { top: number; bottom: number }> = {
+  dusk: { top: 0x1a1520, bottom: 0x2d1f30 },
+  earlyNight: { top: 0x0a0a12, bottom: 0x1a1a2e },
+  deepNight: { top: 0x050510, bottom: 0x0f0f20 },
+  dawn: { top: 0x1a1008, bottom: 0x201510 },
+}
+
 export class MainScene extends Phaser.Scene {
   private gearSprites: Map<number, Phaser.GameObjects.Container> = new Map()
+  private gearFaultIndicators: Map<number, Phaser.GameObjects.Text> = new Map()
   private gearRadii: Map<number, number> = new Map()
   private lightningFlash: Phaser.GameObjects.Rectangle | null = null
   private onGearClick?: (gearId: number, direction: 1 | -1) => void
   private scaleFactor = 1
   public alignedCache: Map<number, boolean> = new Map()
+  private rainParticles: Phaser.GameObjects.Particles.ParticleEmitter | null = null
+  private windParticles: Phaser.GameObjects.Particles.ParticleEmitter | null = null
+  private lightningLoopTimer: Phaser.Time.TimerEvent | null = null
+  private currentWeather: WeatherState = { rain: 'light', wind: 'light', lightning: 'calm' }
+  private bgGradient: Phaser.GameObjects.Graphics | null = null
+  private periodBanner: Phaser.GameObjects.Text | null = null
 
   private clockCenterX = 0
   private clockCenterY = 0
@@ -54,22 +84,30 @@ export class MainScene extends Phaser.Scene {
 
     this.createBackground()
     this.createRain()
+    this.createWind()
     this.createLightning()
     this.createClockFace()
     this.createClockHands()
     this.createTargetMarkers()
     this.createGears()
+    this.createPeriodBanner()
     this.startLightningLoop()
   }
 
-  private createBackground() {
+  private createBackground(period: NightPeriod = 'earlyNight') {
     const { width, height } = this.scale
 
-    const bg = this.add.graphics()
-    bg.fillGradientStyle(0x0a0a12, 0x0a0a12, 0x1a1a2e, 0x12121a, 1)
-    bg.fillRect(0, 0, width, height)
+    if (this.bgGradient) {
+      this.bgGradient.destroy()
+    }
 
-    for (let i = 0; i < 30; i++) {
+    const colors = PERIOD_BG_COLORS[period]
+    this.bgGradient = this.add.graphics()
+    this.bgGradient.fillGradientStyle(colors.top, colors.top, colors.bottom, colors.bottom, 1)
+    this.bgGradient.fillRect(0, 0, width, height)
+
+    const starCount = period === 'deepNight' ? 40 : period === 'dawn' ? 10 : 25
+    for (let i = 0; i < starCount; i++) {
       const x = Phaser.Math.Between(0, width)
       const y = Phaser.Math.Between(0, height)
       const size = Phaser.Math.FloatBetween(0.5, 2)
@@ -96,6 +134,176 @@ export class MainScene extends Phaser.Scene {
       height * 0.84,
       16,
     )
+  }
+
+  setPeriodBackground(period: NightPeriod): void {
+    this.createBackground(period)
+    if (this.bgGradient) {
+      this.bgGradient.setDepth(0)
+    }
+    this.clockCenterX = this.scale.width / 2
+    this.clockCenterY = this.scale.height / 2
+    this.clockRadius = Math.min(this.scale.width, this.scale.height) * 0.42
+  }
+
+  private createPeriodBanner() {
+    const { width } = this.scale
+    this.periodBanner = this.add.text(width / 2, 50, '', {
+      fontFamily: 'Georgia, serif',
+      fontSize: `${16 * this.scaleFactor}px`,
+      color: '#c9a96a',
+      align: 'center',
+      fontStyle: 'bold',
+    }).setOrigin(0.5)
+    this.periodBanner.setDepth(9)
+  }
+
+  showPeriodBanner(text: string): void {
+    if (!this.periodBanner) return
+    this.periodBanner.setText(text)
+    this.periodBanner.setAlpha(0)
+    this.tweens.add({
+      targets: this.periodBanner,
+      alpha: { from: 0, to: 1 },
+      duration: 500,
+      yoyo: true,
+      hold: 1500,
+      ease: Phaser.Math.Easing.Quadratic.InOut,
+    })
+  }
+
+  private createRain() {
+    const { width, height } = this.scale
+
+    const rainGraphics = this.add.graphics()
+    rainGraphics.lineStyle(1, 0x88aacc, 0.6)
+    for (let i = 0; i < 50; i++) {
+      const x = Phaser.Math.Between(0, width)
+      const y = Phaser.Math.Between(0, height)
+      const length = Phaser.Math.Between(5, 15)
+      rainGraphics.lineBetween(x, y, x - 3, y + length)
+    }
+    rainGraphics.generateTexture('rainTexture', 20, 40)
+    rainGraphics.destroy()
+
+    const config = WEATHER_RAIN_CONFIG[this.currentWeather.rain]
+    this.rainParticles = this.add.particles(0, -10, 'rainTexture', {
+      x: { min: 0, max: width },
+      y: -10,
+      lifespan: { min: 400, max: 800 },
+      speedY: { min: config.speedY[0], max: config.speedY[1] },
+      speedX: { min: config.speedX[0], max: config.speedX[1] },
+      quantity: config.quantity,
+      scale: { min: 0.5, max: 1 },
+      alpha: { min: config.alpha[0], max: config.alpha[1] },
+      blendMode: Phaser.BlendModes.ADD,
+    })
+  }
+
+  private createWind() {
+    const { height } = this.scale
+
+    const windGraphics = this.add.graphics()
+    windGraphics.lineStyle(1, 0xaabbcc, 0.3)
+    for (let i = 0; i < 10; i++) {
+      const x = Phaser.Math.Between(0, 30)
+      const y = Phaser.Math.Between(0, 10)
+      windGraphics.lineBetween(x, y, x + 30, y)
+    }
+    windGraphics.generateTexture('windTexture', 40, 15)
+    windGraphics.destroy()
+
+    const windIntensity = this.currentWeather.wind === 'calm' || this.currentWeather.wind === 'light' ? 0 : this.currentWeather.wind === 'moderate' ? 3 : this.currentWeather.wind === 'heavy' ? 8 : 15
+    this.windParticles = this.add.particles(0, 0, 'windTexture', {
+      x: -20,
+      y: { min: 0, max: height },
+      lifespan: { min: 2000, max: 4000 },
+      speedX: { min: 100, max: 300 },
+      speedY: { min: -20, max: 20 },
+      quantity: windIntensity,
+      scale: { min: 0.5, max: 1.5 },
+      alpha: { min: 0.1, max: 0.3 },
+      blendMode: Phaser.BlendModes.ADD,
+    })
+  }
+
+  setWeather(weather: WeatherState): void {
+    this.currentWeather = { ...weather }
+
+    if (this.rainParticles) {
+      this.rainParticles.destroy()
+      this.rainParticles = null
+    }
+    this.createRain()
+
+    const windIntensity = weather.wind === 'calm' || weather.wind === 'light' ? 0 : weather.wind === 'moderate' ? 3 : weather.wind === 'heavy' ? 8 : 15
+    if (this.windParticles) {
+      this.windParticles.destroy()
+      this.windParticles = null
+    }
+    if (windIntensity > 0) {
+      this.createWind()
+    }
+
+    if (this.lightningLoopTimer) {
+      this.lightningLoopTimer.remove()
+    }
+    this.startLightningLoop()
+  }
+
+  private createLightning() {
+    const { width, height } = this.scale
+    this.lightningFlash = this.add.rectangle(
+      width / 2,
+      height / 2,
+      width,
+      height,
+      0xffffff,
+      0,
+    )
+    this.lightningFlash.setDepth(100)
+  }
+
+  private startLightningLoop() {
+    const scheduleNextLightning = () => {
+      const config = WEATHER_LIGHTNING_CONFIG[this.currentWeather.lightning]
+      if (config.minDelay >= 999999) return
+
+      const delay = Phaser.Math.Between(config.minDelay, config.maxDelay)
+      this.lightningLoopTimer = this.time.delayedCall(delay, () => {
+        this.triggerLightning(config.intensity)
+        scheduleNextLightning()
+      })
+    }
+    scheduleNextLightning()
+  }
+
+  private triggerLightning(intensity: number) {
+    if (!this.lightningFlash) return
+
+    const maxAlpha = 0.2 + intensity * 0.4
+
+    this.tweens.add({
+      targets: this.lightningFlash,
+      alpha: { from: 0, to: maxAlpha },
+      duration: 50,
+      yoyo: true,
+      onComplete: () => {
+        this.time.delayedCall(100, () => {
+          this.tweens.add({
+            targets: this.lightningFlash!,
+            alpha: { from: 0, to: maxAlpha * 0.6 },
+            duration: 40,
+            yoyo: true,
+            onComplete: () => {
+              if (this.lightningFlash) this.lightningFlash.alpha = 0
+            },
+          })
+        })
+      },
+    })
+
+    this.events.emit('lightning')
   }
 
   private createClockFace() {
@@ -337,6 +545,18 @@ export class MainScene extends Phaser.Scene {
     }).setOrigin(0.5)
     container.add(hint)
 
+    const faultIndicator = this.add.text(0, -radius - 18, '', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '12px',
+      color: '#ff6b6b',
+      fontStyle: 'bold',
+      backgroundColor: 'rgba(20, 0, 0, 0.7)',
+      padding: { x: 4, y: 2 },
+    }).setOrigin(0.5)
+    faultIndicator.setVisible(false)
+    container.add(faultIndicator)
+    this.gearFaultIndicators.set(id, faultIndicator)
+
     const hitArea = this.add.zone(0, 0, radius * 2.5, radius * 2.5)
     hitArea.setInteractive({ useHandCursor: true })
     container.add(hitArea)
@@ -348,6 +568,76 @@ export class MainScene extends Phaser.Scene {
     })
 
     this.gearSprites.set(id, container)
+  }
+
+  setGearFault(gearId: number, faultType: GearFaultType): void {
+    const indicator = this.gearFaultIndicators.get(gearId)
+    const container = this.gearSprites.get(gearId)
+    if (!indicator || !container) return
+
+    if (faultType === 'none') {
+      indicator.setVisible(false)
+      container.iterate((child: unknown) => {
+        const c = child as unknown as { clearTint?: () => void }
+        if (typeof c.clearTint === 'function') {
+          c.clearTint()
+        }
+      })
+    } else {
+      const faultLabels: Record<GearFaultType, string> = {
+        none: '',
+        jam: '⚠ 卡滞',
+        slip: '⚠ 打滑',
+        reverse: '⚠ 反转',
+        freeze: '⚠ 冻结',
+      }
+      indicator.setText(faultLabels[faultType])
+      indicator.setVisible(true)
+
+      const tintColors: Record<GearFaultType, number> = {
+        none: 0xffffff,
+        jam: 0xff8888,
+        slip: 0xffaa44,
+        reverse: 0xaa88ff,
+        freeze: 0x88ddff,
+      }
+      const tint = tintColors[faultType]
+      container.iterate((child: unknown) => {
+        const c = child as unknown as { setTint?: (t: number) => void }
+        if (typeof c.setTint === 'function') {
+          c.setTint(tint)
+        }
+      })
+    }
+  }
+
+  clearAllGearFaults(): void {
+    this.gearFaultIndicators.forEach((indicator, gearId) => {
+      indicator.setVisible(false)
+      const container = this.gearSprites.get(gearId)
+      if (container) {
+        container.iterate((child: unknown) => {
+          const c = child as unknown as { clearTint?: () => void }
+          if (typeof c.clearTint === 'function') {
+            c.clearTint()
+          }
+        })
+      }
+    })
+  }
+
+  flashGearFault(gearId: number): void {
+    const container = this.gearSprites.get(gearId)
+    if (!container) return
+
+    this.tweens.add({
+      targets: container,
+      scaleX: { from: 1, to: 1.1 },
+      scaleY: { from: 1, to: 1.1 },
+      duration: 100,
+      yoyo: true,
+      ease: Phaser.Math.Easing.Quadratic.Out,
+    })
   }
 
   private drawGear(
@@ -410,83 +700,6 @@ export class MainScene extends Phaser.Scene {
       )
       graphic.strokePath()
     }
-  }
-
-  private createRain() {
-    const { width, height } = this.scale
-
-    const rainGraphics = this.add.graphics()
-    rainGraphics.lineStyle(1, 0x88aacc, 0.6)
-    for (let i = 0; i < 50; i++) {
-      const x = Phaser.Math.Between(0, width)
-      const y = Phaser.Math.Between(0, height)
-      const length = Phaser.Math.Between(5, 15)
-      rainGraphics.lineBetween(x, y, x - 3, y + length)
-    }
-    rainGraphics.generateTexture('rainTexture', 20, 40)
-    rainGraphics.destroy()
-
-    this.add.particles(0, -10, 'rainTexture', {
-      x: { min: 0, max: width },
-      y: -10,
-      lifespan: { min: 400, max: 800 },
-      speedY: { min: 400, max: 700 },
-      speedX: { min: -100, max: -50 },
-      quantity: 8,
-      scale: { min: 0.5, max: 1 },
-      alpha: { min: 0.3, max: 0.7 },
-      blendMode: Phaser.BlendModes.ADD,
-    })
-  }
-
-  private createLightning() {
-    const { width, height } = this.scale
-    this.lightningFlash = this.add.rectangle(
-      width / 2,
-      height / 2,
-      width,
-      height,
-      0xffffff,
-      0,
-    )
-    this.lightningFlash.setDepth(100)
-  }
-
-  private startLightningLoop() {
-    const scheduleNextLightning = () => {
-      const delay = Phaser.Math.Between(5000, 15000)
-      this.time.delayedCall(delay, () => {
-        this.triggerLightning()
-        scheduleNextLightning()
-      })
-    }
-    scheduleNextLightning()
-  }
-
-  private triggerLightning() {
-    if (!this.lightningFlash) return
-
-    this.tweens.add({
-      targets: this.lightningFlash,
-      alpha: { from: 0, to: 0.4 },
-      duration: 50,
-      yoyo: true,
-      onComplete: () => {
-        this.time.delayedCall(100, () => {
-          this.tweens.add({
-            targets: this.lightningFlash!,
-            alpha: { from: 0, to: 0.25 },
-            duration: 40,
-            yoyo: true,
-            onComplete: () => {
-              if (this.lightningFlash) this.lightningFlash.alpha = 0
-            },
-          })
-        })
-      },
-    })
-
-    this.events.emit('lightning')
   }
 
   updateGearAngle(gearId: number, angle: number) {
@@ -552,6 +765,13 @@ export class MainScene extends Phaser.Scene {
         yoyo: true,
         repeat: 4,
       })
+    })
+  }
+
+  playPeriodTransitionAnimation() {
+    this.cameras.main.fadeOut(800, 10, 5, 20)
+    this.time.delayedCall(800, () => {
+      this.cameras.main.fadeIn(800, 10, 5, 20)
     })
   }
 }
