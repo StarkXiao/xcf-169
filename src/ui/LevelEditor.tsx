@@ -5,16 +5,18 @@ import type {
   EditorFaultEvent,
   EditorSoundConfig,
   ClockTime,
-  GearFaultType,
   GameMode,
   EditorFaultTriggerCondition,
   EditorSoundEventType,
+  SoundEvent,
+  EditorFaultType,
 } from '../types'
 import {
   FAULT_DESCRIPTIONS,
   NIGHT_PERIODS,
 } from '../game/NightPatrolSystem'
 import { GEAR_MATERIALS } from '../game/WorkshopSystem'
+import { saveCustomLevelToStorage, loadEditorLevel, validateLevel } from '../game/LevelLoader'
 
 const GEAR_RADIUS: Record<'large' | 'medium' | 'small', number> = {
   large: 70,
@@ -28,18 +30,34 @@ const GEAR_COLORS: Record<'large' | 'medium' | 'small', { base: string; border: 
   small: { base: '#2a4530', border: '#5ae87a' },
 }
 
-const DEFAULT_SOUND_CONFIGS: EditorSoundConfig[] = [
-  { eventType: 'gearRotate', enabled: true, frequency: 180, waveform: 'square', duration: 0.15, volume: 0.15 },
-  { eventType: 'gearSnap', enabled: true, frequency: 440, waveform: 'square', duration: 0.1, volume: 0.2 },
-  { eventType: 'gearFault', enabled: true, frequency: 200, waveform: 'sawtooth', duration: 0.2, volume: 0.12 },
-  { eventType: 'alignSuccess', enabled: true, volume: 0.2 },
-  { eventType: 'bellChime', enabled: true, volume: 0.3 },
-  { eventType: 'thunder', enabled: true, volume: 0.4 },
-  { eventType: 'tick', enabled: true, frequency: 1000, waveform: 'sine', duration: 0.05, volume: 0.05 },
-  { eventType: 'periodTransition', enabled: true, volume: 0.15 },
-  { eventType: 'gameOverSuccess', enabled: true, volume: 0.25 },
-  { eventType: 'gameOverFail', enabled: true, volume: 0.15 },
-]
+const SOUND_EVENT_META: Record<SoundEvent, { label: string; defaultFreq: number; defaultWave: OscillatorType; defaultDur: number; defaultVol: number }> = {
+  gear_click: { label: '齿轮点击', defaultFreq: 180, defaultWave: 'square', defaultDur: 0.15, defaultVol: 0.15 },
+  fault_occur: { label: '故障发生', defaultFreq: 200, defaultWave: 'sawtooth', defaultDur: 0.2, defaultVol: 0.35 },
+  fault_clear: { label: '故障清除', defaultFreq: 440, defaultWave: 'square', defaultDur: 0.1, defaultVol: 0.3 },
+  time_aligned: { label: '时间对齐', defaultFreq: 660, defaultWave: 'sine', defaultDur: 0.4, defaultVol: 0.4 },
+  level_success: { label: '关卡胜利', defaultFreq: 880, defaultWave: 'sine', defaultDur: 0.6, defaultVol: 0.5 },
+  level_fail: { label: '关卡失败', defaultFreq: 150, defaultWave: 'sawtooth', defaultDur: 0.5, defaultVol: 0.4 },
+  weather_change: { label: '天气变化', defaultFreq: 300, defaultWave: 'triangle', defaultDur: 0.25, defaultVol: 0.2 },
+  period_transition: { label: '时段过渡', defaultFreq: 380, defaultWave: 'sine', defaultDur: 0.5, defaultVol: 0.3 },
+  alarm_ring: { label: '警报声响', defaultFreq: 700, defaultWave: 'square', defaultDur: 0.15, defaultVol: 0.4 },
+  tower_align: { label: '塔楼对齐', defaultFreq: 780, defaultWave: 'sine', defaultDur: 0.3, defaultVol: 0.35 },
+}
+
+function createDefaultSoundConfigs(): EditorSoundConfig[] {
+  return (Object.keys(SOUND_EVENT_META) as SoundEvent[]).map((event) => {
+    const meta = SOUND_EVENT_META[event]
+    return {
+      event,
+      enabled: true,
+      frequency: meta.defaultFreq,
+      waveform: meta.defaultWave,
+      duration: meta.defaultDur,
+      volume: meta.defaultVol,
+    }
+  })
+}
+
+const DEFAULT_SOUND_CONFIGS: EditorSoundConfig[] = createDefaultSoundConfigs()
 
 function createDefaultLevel(): EditorLevelConfig {
   const now = Date.now()
@@ -73,18 +91,19 @@ function createDefaultLevel(): EditorLevelConfig {
 
 interface LevelEditorProps {
   onClose: () => void
+  onPlay?: (level: EditorLevelConfig) => void
 }
 
 type EditorTab = 'gears' | 'time' | 'faults' | 'sounds' | 'level'
 
-function LevelEditor({ onClose }: LevelEditorProps) {
+function LevelEditor({ onClose, onPlay }: LevelEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [level, setLevel] = useState<EditorLevelConfig>(createDefaultLevel())
   const [activeTab, setActiveTab] = useState<EditorTab>('gears')
   const [selectedGearId, setSelectedGearId] = useState<number | null>(1)
   const [selectedFaultId, setSelectedFaultId] = useState<string | null>(null)
-  const [selectedSoundType, setSelectedSoundType] = useState<EditorSoundEventType | null>('gearRotate')
+  const [selectedSoundType, setSelectedSoundType] = useState<EditorSoundEventType | null>('gear_click')
   const [draggingGear, setDraggingGear] = useState<number | null>(null)
   const [connectingFrom, setConnectingFrom] = useState<number | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -384,11 +403,11 @@ function LevelEditor({ onClose }: LevelEditorProps) {
       id,
       name: `fault_${level.faultEvents.length + 1}`,
       displayName: `故障事件 ${level.faultEvents.length + 1}`,
-      faultType: 'slip',
-      triggerCondition: 'timeElapsed',
+      type: 'slip',
+      triggerType: 'time',
       triggerValue: 30,
       targetGearIds: level.gears.slice(0, 1).map((g) => g.id),
-      durationSeconds: 15,
+      duration: 15,
       enabled: true,
     }
     updateLevel((prev) => ({ ...prev, faultEvents: [...prev.faultEvents, newFault] }))
@@ -416,11 +435,11 @@ function LevelEditor({ onClose }: LevelEditorProps) {
   )
 
   const updateSound = useCallback(
-    (eventType: EditorSoundEventType, updates: Partial<EditorSoundConfig>) => {
+    (event: EditorSoundEventType, updates: Partial<EditorSoundConfig>) => {
       updateLevel((prev) => ({
         ...prev,
         soundConfigs: prev.soundConfigs.map((s) =>
-          s.eventType === eventType ? { ...s, ...updates } : s,
+          s.event === event ? { ...s, ...updates } : s,
         ),
       }))
     },
@@ -473,7 +492,23 @@ function LevelEditor({ onClose }: LevelEditorProps) {
   const selectedGear = level.gears.find((g) => g.id === selectedGearId) || null
   const selectedFault = level.faultEvents.find((f) => f.id === selectedFaultId) || null
   const selectedSound =
-    level.soundConfigs.find((s) => s.eventType === selectedSoundType) || null
+    level.soundConfigs.find((s) => s.event === selectedSoundType) || null
+
+  const handlePlayLevel = useCallback(() => {
+    try {
+      const loaded = loadEditorLevel(level)
+      const validation = validateLevel(loaded)
+      if (!validation.valid) {
+        alert(`关卡验证失败：\n${validation.errors.join('\n')}`)
+        return
+      }
+      saveCustomLevelToStorage(loaded)
+      showToast('关卡已加载，启动试玩...')
+      setTimeout(() => onPlay?.(level), 500)
+    } catch (err) {
+      alert(`无法试玩：${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [level, onPlay, showToast])
 
   const formatClockTime = (t: ClockTime) =>
     `${t.hours}:${t.minutes.toString().padStart(2, '0')}`
@@ -496,6 +531,11 @@ function LevelEditor({ onClose }: LevelEditorProps) {
           <button className="editor-btn primary" onClick={exportLevel}>
             💾 导出关卡
           </button>
+          {onPlay && (
+            <button className="editor-btn" style={{ backgroundColor: '#2d6a4f', color: '#fff' }} onClick={handlePlayLevel}>
+              ▶ 试玩验证
+            </button>
+          )}
           <button className="editor-close" onClick={onClose}>✕</button>
         </div>
       </div>
@@ -799,8 +839,8 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                         className={`fault-list-item ${selectedFaultId === f.id ? 'selected' : ''} ${!f.enabled ? 'disabled' : ''}`}
                         onClick={() => setSelectedFaultId(f.id)}
                       >
-                        <span className={`fault-type-badge fault-${f.faultType}`}>
-                          {FAULT_DESCRIPTIONS[f.faultType]}
+                        <span className={`fault-type-badge fault-${f.type}`}>
+                          {FAULT_DESCRIPTIONS[f.type]}
                         </span>
                         <span className="fault-name">{f.displayName}</span>
                         <button
@@ -841,10 +881,10 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                     <div className="form-group">
                       <label>故障类型</label>
                       <select
-                        value={selectedFault.faultType}
+                        value={selectedFault.type}
                         onChange={(e) =>
                           updateFault(selectedFault.id, {
-                            faultType: e.target.value as GearFaultType,
+                            type: e.target.value as EditorFaultType,
                           })
                         }
                       >
@@ -857,17 +897,17 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                     <div className="form-group">
                       <label>触发条件</label>
                       <select
-                        value={selectedFault.triggerCondition}
+                        value={selectedFault.triggerType}
                         onChange={(e) =>
                           updateFault(selectedFault.id, {
-                            triggerCondition: e.target.value as EditorFaultTriggerCondition,
+                            triggerType: e.target.value as EditorFaultTriggerCondition,
                           })
                         }
                       >
-                        <option value="timeElapsed">经过指定时间（秒）</option>
-                        <option value="rotationsCount">齿轮转动次数</option>
-                        <option value="deviationExceeded">偏差超过（分钟）</option>
-                        <option value="randomInterval">随机间隔（秒）</option>
+                        <option value="time">经过指定时间（秒）</option>
+                        <option value="rotations">齿轮转动次数</option>
+                        <option value="deviation">偏差超过（分钟）</option>
+                        <option value="random">随机间隔（秒）</option>
                       </select>
                     </div>
                     <div className="form-group">
@@ -886,9 +926,9 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                       <input
                         type="number"
                         min={1}
-                        value={selectedFault.durationSeconds}
+                        value={selectedFault.duration}
                         onChange={(e) =>
-                          updateFault(selectedFault.id, { durationSeconds: Number(e.target.value) })
+                          updateFault(selectedFault.id, { duration: Number(e.target.value) })
                         }
                       />
                     </div>
@@ -930,19 +970,19 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                   <div className="sound-list">
                     {level.soundConfigs.map((s) => (
                       <div
-                        key={s.eventType}
-                        className={`sound-list-item ${selectedSoundType === s.eventType ? 'selected' : ''} ${!s.enabled ? 'disabled' : ''}`}
-                        onClick={() => setSelectedSoundType(s.eventType)}
+                        key={s.event}
+                        className={`sound-list-item ${selectedSoundType === s.event ? 'selected' : ''} ${!s.enabled ? 'disabled' : ''}`}
+                        onClick={() => setSelectedSoundType(s.event)}
                       >
                         <label className="sound-toggle" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={s.enabled}
-                            onChange={(e) => updateSound(s.eventType, { enabled: e.target.checked })}
+                            onChange={(e) => updateSound(s.event, { enabled: e.target.checked })}
                           />
                         </label>
                         <span className="sound-icon">🔊</span>
-                        <span className="sound-name">{s.eventType}</span>
+                        <span className="sound-name">{SOUND_EVENT_META[s.event]?.label || s.event}</span>
                       </div>
                     ))}
                   </div>
@@ -951,81 +991,62 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                 {selectedSound && (
                   <div className="panel-section">
                     <div className="section-header">
-                      <h3>{selectedSound.eventType} 配置</h3>
+                      <h3>{SOUND_EVENT_META[selectedSound.event]?.label || selectedSound.event} 配置</h3>
                     </div>
                     <div className="form-group">
-                      <label>自定义标签</label>
+                      <label>频率 (Hz)</label>
                       <input
-                        type="text"
-                        value={selectedSound.customLabel || ''}
-                        placeholder="可选"
+                        type="number"
+                        min={20}
+                        max={20000}
+                        value={selectedSound.frequency}
                         onChange={(e) =>
-                          updateSound(selectedSound.eventType, { customLabel: e.target.value })
+                          updateSound(selectedSound.event, { frequency: Number(e.target.value) })
                         }
                       />
                     </div>
-                    {selectedSound.frequency !== undefined && (
-                      <div className="form-group">
-                        <label>频率 (Hz)</label>
-                        <input
-                          type="number"
-                          min={20}
-                          max={20000}
-                          value={selectedSound.frequency}
-                          onChange={(e) =>
-                            updateSound(selectedSound.eventType, { frequency: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                    )}
-                    {selectedSound.waveform !== undefined && (
-                      <div className="form-group">
-                        <label>波形</label>
-                        <select
-                          value={selectedSound.waveform}
-                          onChange={(e) =>
-                            updateSound(selectedSound.eventType, {
-                              waveform: e.target.value as OscillatorType,
-                            })
-                          }
-                        >
-                          <option value="sine">正弦波 (Sine)</option>
-                          <option value="square">方波 (Square)</option>
-                          <option value="sawtooth">锯齿波 (Sawtooth)</option>
-                          <option value="triangle">三角波 (Triangle)</option>
-                        </select>
-                      </div>
-                    )}
-                    {selectedSound.duration !== undefined && (
-                      <div className="form-group">
-                        <label>持续时长（秒）</label>
-                        <input
-                          type="number"
-                          min={0.01}
-                          max={5}
-                          step={0.01}
-                          value={selectedSound.duration}
-                          onChange={(e) =>
-                            updateSound(selectedSound.eventType, { duration: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                    )}
-                    {selectedSound.volume !== undefined && (
-                      <div className="form-group">
-                        <label>音量 ({Math.round((selectedSound.volume || 0) * 100)}%)</label>
-                        <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.01}
-                          value={selectedSound.volume}
-                          onChange={(e) =>
-                            updateSound(selectedSound.eventType, { volume: Number(e.target.value) })
-                          }
-                        />
-                      </div>
-                    )}
+                    <div className="form-group">
+                      <label>波形</label>
+                      <select
+                        value={selectedSound.waveform}
+                        onChange={(e) =>
+                          updateSound(selectedSound.event, {
+                            waveform: e.target.value as OscillatorType,
+                          })
+                        }
+                      >
+                        <option value="sine">正弦波 (Sine)</option>
+                        <option value="square">方波 (Square)</option>
+                        <option value="sawtooth">锯齿波 (Sawtooth)</option>
+                        <option value="triangle">三角波 (Triangle)</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>持续时长（秒）</label>
+                      <input
+                        type="number"
+                        min={0.01}
+                        max={5}
+                        step={0.01}
+                        value={selectedSound.duration}
+                        onChange={(e) =>
+                          updateSound(selectedSound.event, { duration: Number(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>音量 ({Math.round(selectedSound.volume * 100)}%)</label>
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={selectedSound.volume}
+                        onChange={(e) =>
+                          updateSound(selectedSound.event, { volume: Number(e.target.value) })
+                        }
+                      />
+                    </div>
                     <div className="form-group">
                       <label>材质预设</label>
                       <div className="material-presets">
@@ -1035,7 +1056,7 @@ function LevelEditor({ onClose }: LevelEditorProps) {
                             className="preset-btn"
                             style={{ borderColor: m.visual.glowColor }}
                             onClick={() =>
-                              updateSound(selectedSound.eventType, {
+                              updateSound(selectedSound.event, {
                                 frequency: m.audio.rotateFreq,
                                 waveform: m.audio.waveform,
                               })

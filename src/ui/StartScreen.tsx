@@ -5,9 +5,10 @@ interface StartScreenProps {
   onStart: (mode: GameMode) => void
   onOpenWorkshop: () => void
   onOpenEditor: () => void
+  onImportLevel?: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenEditor }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenEditor, onImportLevel }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -69,10 +70,15 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenEditor }: StartScreenProps
         </button>
       </div>
 
-      <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button className="editor-entry-btn" onClick={onOpenEditor}>
           ✏️ 关卡编辑器
         </button>
+        {onImportLevel && (
+          <button className="editor-entry-btn" onClick={onImportLevel} style={{ backgroundColor: '#1a3a2a', borderColor: '#3d7a5a' }}>
+            📂 导入关卡JSON
+          </button>
+        )}
       </div>
       <div className="patrol-hint">
         <div className="patrol-hint-title">🌙 钟楼巡夜规则：</div>

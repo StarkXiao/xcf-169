@@ -1,75 +1,135 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Game from './game/Game'
 import MultiClockGame from './game/MultiClockGame'
+import CustomGame from './game/CustomGame'
 import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
 import LevelEditor from './ui/LevelEditor'
-import type { GameResult, GameMode, MultiClockGameResult } from './types'
+import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig } from './types'
+import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 
 type AnyGameResult = GameResult | MultiClockGameResult
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'editor' | 'customGame'
 
 function App() {
-  const [gameStarted, setGameStarted] = useState(false)
+  const [view, setView] = useState<AppView>('menu')
   const [gameResult, setGameResult] = useState<AnyGameResult | null>(null)
   const [currentMode, setCurrentMode] = useState<GameMode>('classic')
-  const [showWorkshop, setShowWorkshop] = useState(false)
-  const [showEditor, setShowEditor] = useState(false)
+  const [customLevel, setCustomLevel] = useState<LoadedLevel | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const goTo = useCallback((v: AppView) => setView(v), [])
 
   const handleStart = useCallback((mode: GameMode) => {
     setCurrentMode(mode)
-    setGameStarted(true)
     setGameResult(null)
-  }, [])
+    setCustomLevel(null)
+    goTo('game')
+  }, [goTo])
 
   const handleGameEnd = useCallback((result: AnyGameResult) => {
     setGameResult(result)
-    setGameStarted(false)
-  }, [])
+    goTo('result')
+  }, [goTo])
 
   const handleRestart = useCallback(() => {
-    setGameStarted(true)
     setGameResult(null)
-  }, [])
+    if (customLevel) {
+      goTo('customGame')
+    } else {
+      goTo('game')
+    }
+  }, [customLevel, goTo])
 
   const handleBackToMenu = useCallback(() => {
-    setGameStarted(false)
     setGameResult(null)
-  }, [])
+    setCustomLevel(null)
+    goTo('menu')
+  }, [goTo])
 
-  const handleOpenWorkshop = useCallback(() => {
-    setShowWorkshop(true)
-  }, [])
+  const handleOpenWorkshop = useCallback(() => goTo('workshop'), [goTo])
+  const handleCloseWorkshop = useCallback(() => goTo('menu'), [goTo])
 
-  const handleCloseWorkshop = useCallback(() => {
-    setShowWorkshop(false)
-  }, [])
+  const handleOpenEditor = useCallback(() => goTo('editor'), [goTo])
+  const handleCloseEditor = useCallback(() => goTo('menu'), [goTo])
 
-  const handleOpenEditor = useCallback(() => {
-    setShowEditor(true)
-  }, [])
+  const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
+    const loaded = loadCustomLevelFromStorage()
+    if (loaded) {
+      setCustomLevel(loaded)
+      setGameResult(null)
+      goTo('customGame')
+    }
+  }, [goTo])
 
-  const handleCloseEditor = useCallback(() => {
-    setShowEditor(false)
-  }, [])
+  const handleExitCustomGame = useCallback(() => {
+    goTo('editor')
+  }, [goTo])
+
+  const handleImportCustomLevel = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target?.result as string)
+        const loaded = loadEditorLevel(parsed)
+        saveCustomLevelToStorage(loaded)
+        setCustomLevel(loaded)
+        setGameResult(null)
+        goTo('customGame')
+      } catch (err) {
+        alert(`导入失败：${err instanceof Error ? err.message : String(err)}`)
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
+  }, [goTo])
 
   const isMultiClockResult = (r: AnyGameResult | null): r is MultiClockGameResult => {
     return r !== null && 'sideTowersAligned' in r
   }
 
+  const showGame = view === 'game'
+  const showCustomGame = view === 'customGame'
+  const showResult = view === 'result'
+  const showWorkshop = view === 'workshop'
+  const showEditor = view === 'editor'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showEditor
+
   return (
     <div className="app-container">
-      {!gameStarted && !gameResult && !showWorkshop && !showEditor && (
-        <StartScreen onStart={handleStart} onOpenWorkshop={handleOpenWorkshop} onOpenEditor={handleOpenEditor} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: 'none' }}
+        onChange={handleImportCustomLevel}
+      />
+      {showMenu && (
+        <StartScreen
+          onStart={handleStart}
+          onOpenWorkshop={handleOpenWorkshop}
+          onOpenEditor={handleOpenEditor}
+          onImportLevel={() => fileInputRef.current?.click()}
+        />
       )}
-      {gameStarted && currentMode !== 'multiclock' && (
+      {showGame && currentMode !== 'multiclock' && (
         <Game onGameEnd={handleGameEnd} mode={currentMode} />
       )}
-      {gameStarted && currentMode === 'multiclock' && (
+      {showGame && currentMode === 'multiclock' && (
         <MultiClockGame onGameEnd={handleGameEnd} />
       )}
-      {gameResult && !showWorkshop && !isMultiClockResult(gameResult) && (
+      {showCustomGame && customLevel && (
+        <CustomGame
+          level={customLevel}
+          onGameEnd={handleGameEnd}
+          onExit={handleExitCustomGame}
+        />
+      )}
+      {showResult && !showWorkshop && !isMultiClockResult(gameResult) && (
         <GameOverPanel
           result={gameResult as GameResult}
           onRestart={handleRestart}
@@ -77,7 +137,7 @@ function App() {
           onOpenWorkshop={handleOpenWorkshop}
         />
       )}
-      {gameResult && !showWorkshop && isMultiClockResult(gameResult) && (
+      {showResult && !showWorkshop && isMultiClockResult(gameResult) && (
         <MultiClockGameOverPanel
           result={gameResult as MultiClockGameResult}
           onRestart={handleRestart}
@@ -86,7 +146,7 @@ function App() {
         />
       )}
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
-      {showEditor && <LevelEditor onClose={handleCloseEditor} />}
+      {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} />}
     </div>
   )
 }

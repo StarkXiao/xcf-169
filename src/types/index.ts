@@ -193,43 +193,46 @@ export interface MultiClockGameResult {
   averageDeviation: number
 }
 
-export type EditorSoundEventType =
-  | 'gearRotate'
-  | 'gearSnap'
-  | 'gearFault'
-  | 'alignSuccess'
-  | 'bellChime'
-  | 'thunder'
-  | 'tick'
-  | 'periodTransition'
-  | 'gameOverSuccess'
-  | 'gameOverFail'
+export type SoundEvent =
+  | 'gear_click'
+  | 'fault_occur'
+  | 'fault_clear'
+  | 'time_aligned'
+  | 'level_success'
+  | 'level_fail'
+  | 'weather_change'
+  | 'period_transition'
+  | 'alarm_ring'
+  | 'tower_align'
+
+export type EditorSoundEventType = SoundEvent
 
 export interface EditorSoundConfig {
-  eventType: EditorSoundEventType
+  event: EditorSoundEventType
   enabled: boolean
-  frequency?: number
-  waveform?: OscillatorType
-  duration?: number
-  volume?: number
-  customLabel?: string
+  frequency: number
+  waveform: OscillatorType
+  duration: number
+  volume: number
 }
 
 export type EditorFaultTriggerCondition =
-  | 'timeElapsed'
-  | 'rotationsCount'
-  | 'deviationExceeded'
-  | 'randomInterval'
+  | 'time'
+  | 'rotations'
+  | 'deviation'
+  | 'random'
+
+export type EditorFaultType = 'jam' | 'slip' | 'reverse' | 'freeze'
 
 export interface EditorFaultEvent {
   id: string
   name: string
   displayName: string
-  faultType: GearFaultType
-  triggerCondition: EditorFaultTriggerCondition
+  type: EditorFaultType
+  triggerType: EditorFaultTriggerCondition
   triggerValue: number
   targetGearIds: number[]
-  durationSeconds: number
+  duration: number
   enabled: boolean
 }
 

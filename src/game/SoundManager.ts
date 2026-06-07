@@ -1,4 +1,5 @@
-import type { WeatherIntensity, GearMaterialConfig } from '../types'
+import type { WeatherIntensity, GearMaterialConfig, SoundEvent } from '../types'
+import type { LoadedSoundConfig } from './LevelLoader'
 import { GEAR_MATERIALS } from './WorkshopSystem'
 
 const RAIN_INTENSITY_GAIN: Record<WeatherIntensity, number> = {
@@ -27,9 +28,79 @@ export class SoundManager {
   private windGain: GainNode | null = null
   private currentMaterial: GearMaterialConfig = GEAR_MATERIALS[0]
   private enhancedFeedback: boolean = false
+  private soundScriptConfigs: Partial<Record<SoundEvent, LoadedSoundConfig>> = {}
 
   constructor() {
     this.initContext()
+  }
+
+  applySoundScripts(configs: Record<SoundEvent, LoadedSoundConfig>): void {
+    this.soundScriptConfigs = { ...configs }
+  }
+
+  clearSoundScripts(): void {
+    this.soundScriptConfigs = {}
+  }
+
+  private playScriptedSound(event: SoundEvent, fallback: () => void): void {
+    const cfg = this.soundScriptConfigs[event]
+    if (!cfg || !cfg.enabled) {
+      fallback()
+      return
+    }
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = cfg.waveform
+    osc.frequency.setValueAtTime(cfg.frequency, this.audioContext.currentTime)
+    if (cfg.duration > 0.05) {
+      osc.frequency.exponentialRampToValueAtTime(
+        Math.max(40, cfg.frequency * 0.6),
+        this.audioContext.currentTime + cfg.duration,
+      )
+    }
+    gain.gain.setValueAtTime(cfg.volume, this.audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + cfg.duration)
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + cfg.duration)
+  }
+
+  playSoundEvent(event: SoundEvent): void {
+    switch (event) {
+      case 'gear_click':
+        this.playScriptedSound(event, () => this.playGearRotate())
+        break
+      case 'fault_occur':
+        this.playScriptedSound(event, () => this.playGearFault())
+        break
+      case 'fault_clear':
+        this.playScriptedSound(event, () => this.playGearSnap())
+        break
+      case 'time_aligned':
+        this.playScriptedSound(event, () => this.playAlignSuccess())
+        break
+      case 'level_success':
+        this.playScriptedSound(event, () => this.playGameOver(true))
+        break
+      case 'level_fail':
+        this.playScriptedSound(event, () => this.playGameOver(false))
+        break
+      case 'weather_change':
+        this.playScriptedSound(event, () => this.playThunder())
+        break
+      case 'period_transition':
+        this.playScriptedSound(event, () => this.playPeriodTransition())
+        break
+      case 'alarm_ring':
+        this.playScriptedSound(event, () => this.playTick())
+        break
+      case 'tower_align':
+        this.playScriptedSound(event, () => this.playBellChime())
+        break
+    }
   }
 
   setGearMaterial(material: GearMaterialConfig): void {

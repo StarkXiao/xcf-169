@@ -52,6 +52,7 @@ export class GearSystem {
   private patrolSystem: NightPatrolSystem | null = null
   private isPatrolMode = false
   private workshopEffects: WorkshopEffects = DEFAULT_WORKSHOP_EFFECTS
+  private gearFaults: Map<number, GearFaultType> = new Map()
 
   constructor(configs: GearConfig[]) {
     configs.forEach((config) => {
@@ -135,6 +136,23 @@ export class GearSystem {
     this.targetTime = { ...time }
   }
 
+  setInitialTime(time: ClockTime): void {
+    this.currentTime = { ...time }
+    this.onTimeChange?.(this.currentTime)
+  }
+
+  setGearFault(gearId: number, faultType: GearFaultType): void {
+    if (faultType === 'none') {
+      this.gearFaults.delete(gearId)
+    } else {
+      this.gearFaults.set(gearId, faultType)
+    }
+  }
+
+  getGearFault(gearId: number): GearFaultType {
+    return this.gearFaults.get(gearId) ?? 'none'
+  }
+
   getGear(id: number) {
     return this.gears.get(id)
   }
@@ -157,22 +175,60 @@ export class GearSystem {
     const efficiency = this.workshopEffects.efficiencyMultiplier
     const faultResist = this.workshopEffects.faultResistanceChance
 
-    if (this.patrolSystem && this.isPatrolMode) {
-      const hasFault = this.patrolSystem.getGearFault(gearId) !== 'none'
-      const resistedFault = hasFault && Math.random() < faultResist
+    const applyFaultEffect = (id: number, dir: 1 | -1): { direction: 1 | -1; skip: boolean; multiplier: number; faultType: GearFaultType } => {
+      let resultDir = dir
+      let resultSkip = false
+      let resultMultiplier = 1
+      let faultType: GearFaultType = 'none'
 
-      if (!resistedFault) {
-        const faultEffect = this.patrolSystem.applyFaultEffect(gearId, direction)
-        actualDirection = faultEffect.direction
-        skip = faultEffect.skip
-        multiplier = faultEffect.multiplier
+      if (this.patrolSystem && this.isPatrolMode) {
+        faultType = this.patrolSystem.getGearFault(id)
+      }
+      if (faultType === 'none') {
+        faultType = this.gearFaults.get(id) ?? 'none'
+      }
 
-        const faultType = this.patrolSystem.getGearFault(gearId)
-        if (faultType !== 'none') {
-          this.onFaultTriggered?.(gearId, faultType)
-          if (faultType === 'reverse') reversed = true
-          if (faultType === 'slip') slipped = true
-        }
+      switch (faultType) {
+        case 'jam':
+          resultSkip = true
+          break
+        case 'slip':
+          resultMultiplier = 0.5
+          break
+        case 'reverse':
+          resultDir = (-dir) as 1 | -1
+          break
+        case 'freeze':
+          resultSkip = true
+          break
+      }
+
+      return { direction: resultDir, skip: resultSkip, multiplier: resultMultiplier, faultType }
+    }
+
+    const primaryFault = this.patrolSystem
+      ? this.patrolSystem.getGearFault(gearId)
+      : (this.gearFaults.get(gearId) ?? 'none')
+    const hasPrimaryFault = primaryFault !== 'none'
+    const resistedPrimary = hasPrimaryFault && Math.random() < faultResist
+
+    if (!resistedPrimary && hasPrimaryFault) {
+      const effect = applyFaultEffect(gearId, direction)
+      actualDirection = effect.direction
+      skip = effect.skip
+      multiplier = effect.multiplier
+      if (effect.faultType === 'reverse') reversed = true
+      if (effect.faultType === 'slip') slipped = true
+      this.onFaultTriggered?.(gearId, effect.faultType)
+    } else if (!hasPrimaryFault) {
+      const effect = applyFaultEffect(gearId, direction)
+      if (effect.faultType !== 'none') {
+        actualDirection = effect.direction
+        skip = effect.skip
+        multiplier = effect.multiplier
+        if (effect.faultType === 'reverse') reversed = true
+        if (effect.faultType === 'slip') slipped = true
+        this.onFaultTriggered?.(gearId, effect.faultType)
       }
     }
 
@@ -197,20 +253,27 @@ export class GearSystem {
         let connSkip = false
         let connMultiplier = 1
 
-        if (this.patrolSystem && this.isPatrolMode) {
-          const connHasFault = this.patrolSystem.getGearFault(connectedId) !== 'none'
-          const connResisted = connHasFault && Math.random() < faultResist
+        const connFault = this.patrolSystem && this.isPatrolMode
+          ? this.patrolSystem.getGearFault(connectedId)
+          : (this.gearFaults.get(connectedId) ?? 'none')
+        const connHasFault = connFault !== 'none'
+        const connResisted = connHasFault && Math.random() < faultResist
 
-          if (!connResisted) {
-            const connFaultEffect = this.patrolSystem.applyFaultEffect(connectedId, connDirection)
-            connDirection = connFaultEffect.direction
-            connSkip = connFaultEffect.skip
-            connMultiplier = connFaultEffect.multiplier
-
-            const connFaultType = this.patrolSystem.getGearFault(connectedId)
-            if (connFaultType !== 'none') {
-              this.onFaultTriggered?.(connectedId, connFaultType)
-            }
+        if (!connResisted && connHasFault) {
+          const connEffect = applyFaultEffect(connectedId, connDirection)
+          connDirection = connEffect.direction
+          connSkip = connEffect.skip
+          connMultiplier = connEffect.multiplier
+          if (connEffect.faultType !== 'none') {
+            this.onFaultTriggered?.(connectedId, connEffect.faultType)
+          }
+        } else if (!connHasFault) {
+          const connEffect = applyFaultEffect(connectedId, connDirection)
+          if (connEffect.faultType !== 'none') {
+            connDirection = connEffect.direction
+            connSkip = connEffect.skip
+            connMultiplier = connEffect.multiplier
+            this.onFaultTriggered?.(connectedId, connEffect.faultType)
           }
         }
 
