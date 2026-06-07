@@ -59,6 +59,13 @@ function StartScreen({ onStart, onOpenWorkshop }: StartScreenProps) {
             天气变化 · 齿轮故障 · 多重挑战
           </div>
         </button>
+        <button className="start-btn mode-btn multiclock-btn" onClick={() => onStart('multiclock')}>
+          <div className="mode-title">多钟面连锁</div>
+          <div className="mode-desc">
+            主钟+侧塔联动校准<br />
+            指针偏差 · 机关联动 · 限时目标
+          </div>
+        </button>
       </div>
       <div className="patrol-hint">
         <div className="patrol-hint-title">🌙 钟楼巡夜规则：</div>

@@ -23,7 +23,7 @@ export interface GameResult {
 
 export type GameStatus = 'idle' | 'playing' | 'success' | 'failed'
 
-export type GameMode = 'classic' | 'patrol'
+export type GameMode = 'classic' | 'patrol' | 'multiclock'
 
 export type NightPeriod = 'dusk' | 'earlyNight' | 'deepNight' | 'dawn'
 
@@ -121,4 +121,73 @@ export interface WorkshopEffects {
   faultResistanceChance: number
   showTargetHint: boolean
   enhancedFeedback: boolean
+}
+
+export type SideTowerClockRole = 'minute' | 'hour' | 'second'
+
+export interface SideTowerClock {
+  id: string
+  name: string
+  displayName: string
+  role: SideTowerClockRole
+  position: { x: number; y: number }
+  currentTime: ClockTime
+  targetTime: ClockTime
+  linkedToMain: boolean
+  linkageRatio: number
+  deviationMinutes: number
+  mechanismId?: string
+  isAligned: boolean
+}
+
+export type MechanismType = 'gearChain' | 'pulley' | 'pendulum' | 'spring'
+
+export interface ClockMechanism {
+  id: string
+  name: string
+  displayName: string
+  type: MechanismType
+  sourceClockId: string
+  targetClockId: string
+  activationCondition: 'aligned' | 'deviationWithin' | 'timeReached'
+  activationValue?: number
+  isActive: boolean
+  effectMultiplier: number
+}
+
+export interface MultiClockLevelConfig {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  duration: number
+  mainClockTarget: ClockTime
+  sideTowers: Omit<SideTowerClock, 'isAligned'>[]
+  mechanisms: ClockMechanism[]
+  toleranceMinutes: number
+  scoreMultiplier: number
+  requireAllAligned: boolean
+}
+
+export interface MultiClockState {
+  levelConfig: MultiClockLevelConfig
+  mainClockCurrent: ClockTime
+  sideTowers: SideTowerClock[]
+  mechanisms: ClockMechanism[]
+  isCompleted: boolean
+  allAligned: boolean
+  totalDeviation: number
+}
+
+export type MultiClockGameStatus = 'idle' | 'playing' | 'success' | 'failed'
+
+export interface MultiClockGameResult {
+  success: boolean
+  score: number
+  timeLeft: number
+  levelId: string
+  sideTowersAligned: number
+  totalSideTowers: number
+  totalDeviation: number
+  averageDeviation: number
 }

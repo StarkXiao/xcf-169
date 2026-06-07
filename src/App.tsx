@@ -1,13 +1,17 @@
 import { useState, useCallback } from 'react'
 import Game from './game/Game'
+import MultiClockGame from './game/MultiClockGame'
 import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
+import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
-import type { GameResult, GameMode } from './types'
+import type { GameResult, GameMode, MultiClockGameResult } from './types'
+
+type AnyGameResult = GameResult | MultiClockGameResult
 
 function App() {
   const [gameStarted, setGameStarted] = useState(false)
-  const [gameResult, setGameResult] = useState<GameResult | null>(null)
+  const [gameResult, setGameResult] = useState<AnyGameResult | null>(null)
   const [currentMode, setCurrentMode] = useState<GameMode>('classic')
   const [showWorkshop, setShowWorkshop] = useState(false)
 
@@ -17,7 +21,7 @@ function App() {
     setGameResult(null)
   }, [])
 
-  const handleGameEnd = useCallback((result: GameResult) => {
+  const handleGameEnd = useCallback((result: AnyGameResult) => {
     setGameResult(result)
     setGameStarted(false)
   }, [])
@@ -40,15 +44,32 @@ function App() {
     setShowWorkshop(false)
   }, [])
 
+  const isMultiClockResult = (r: AnyGameResult | null): r is MultiClockGameResult => {
+    return r !== null && 'sideTowersAligned' in r
+  }
+
   return (
     <div className="app-container">
       {!gameStarted && !gameResult && !showWorkshop && (
         <StartScreen onStart={handleStart} onOpenWorkshop={handleOpenWorkshop} />
       )}
-      {gameStarted && <Game onGameEnd={handleGameEnd} mode={currentMode} />}
-      {gameResult && !showWorkshop && (
+      {gameStarted && currentMode !== 'multiclock' && (
+        <Game onGameEnd={handleGameEnd} mode={currentMode} />
+      )}
+      {gameStarted && currentMode === 'multiclock' && (
+        <MultiClockGame onGameEnd={handleGameEnd} />
+      )}
+      {gameResult && !showWorkshop && !isMultiClockResult(gameResult) && (
         <GameOverPanel
-          result={gameResult}
+          result={gameResult as GameResult}
+          onRestart={handleRestart}
+          onBackToMenu={handleBackToMenu}
+          onOpenWorkshop={handleOpenWorkshop}
+        />
+      )}
+      {gameResult && !showWorkshop && isMultiClockResult(gameResult) && (
+        <MultiClockGameOverPanel
+          result={gameResult as MultiClockGameResult}
           onRestart={handleRestart}
           onBackToMenu={handleBackToMenu}
           onOpenWorkshop={handleOpenWorkshop}
