@@ -55,6 +55,8 @@ function Game({ onGameEnd, mode }: GameProps) {
   }, [])
 
   const handlePeriodComplete = useCallback(() => {
+    if (gameEnded) return
+
     const gs = gearSystemRef.current
     const timer = timerRef.current
     const sound = soundRef.current
@@ -63,6 +65,9 @@ function Game({ onGameEnd, mode }: GameProps) {
     if (!gs || !timer || !sound || !scene || !patrol) return
 
     const remaining = timer.getTimeLeft()
+    timer.pause()
+    setTimeLeft(remaining)
+
     const diffMinutes = gs.getTimeDiffMinutes()
 
     const baseScore = 500
@@ -100,6 +105,8 @@ function Game({ onGameEnd, mode }: GameProps) {
     }
 
     setTimeout(() => {
+      if (gameEnded) return
+
       const nextPeriod = patrol.getCurrentPeriod()
       setCurrentPeriod(nextPeriod)
       setPeriodIndex(patrol.getPeriodIndex())
@@ -125,7 +132,7 @@ function Game({ onGameEnd, mode }: GameProps) {
 
       timer.restart(nextPeriod.duration)
     }, 2000)
-  }, [onGameEnd])
+  }, [gameEnded, onGameEnd])
 
   const handleGameEnd = useCallback((success: boolean) => {
     if (gameEnded) return
