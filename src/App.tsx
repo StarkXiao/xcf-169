@@ -5,6 +5,7 @@ import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
+import LevelEditor from './ui/LevelEditor'
 import type { GameResult, GameMode, MultiClockGameResult } from './types'
 
 type AnyGameResult = GameResult | MultiClockGameResult
@@ -14,6 +15,7 @@ function App() {
   const [gameResult, setGameResult] = useState<AnyGameResult | null>(null)
   const [currentMode, setCurrentMode] = useState<GameMode>('classic')
   const [showWorkshop, setShowWorkshop] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
 
   const handleStart = useCallback((mode: GameMode) => {
     setCurrentMode(mode)
@@ -44,14 +46,22 @@ function App() {
     setShowWorkshop(false)
   }, [])
 
+  const handleOpenEditor = useCallback(() => {
+    setShowEditor(true)
+  }, [])
+
+  const handleCloseEditor = useCallback(() => {
+    setShowEditor(false)
+  }, [])
+
   const isMultiClockResult = (r: AnyGameResult | null): r is MultiClockGameResult => {
     return r !== null && 'sideTowersAligned' in r
   }
 
   return (
     <div className="app-container">
-      {!gameStarted && !gameResult && !showWorkshop && (
-        <StartScreen onStart={handleStart} onOpenWorkshop={handleOpenWorkshop} />
+      {!gameStarted && !gameResult && !showWorkshop && !showEditor && (
+        <StartScreen onStart={handleStart} onOpenWorkshop={handleOpenWorkshop} onOpenEditor={handleOpenEditor} />
       )}
       {gameStarted && currentMode !== 'multiclock' && (
         <Game onGameEnd={handleGameEnd} mode={currentMode} />
@@ -76,6 +86,7 @@ function App() {
         />
       )}
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
+      {showEditor && <LevelEditor onClose={handleCloseEditor} />}
     </div>
   )
 }

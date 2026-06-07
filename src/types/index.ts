@@ -192,3 +192,75 @@ export interface MultiClockGameResult {
   totalDeviation: number
   averageDeviation: number
 }
+
+export type EditorSoundEventType =
+  | 'gearRotate'
+  | 'gearSnap'
+  | 'gearFault'
+  | 'alignSuccess'
+  | 'bellChime'
+  | 'thunder'
+  | 'tick'
+  | 'periodTransition'
+  | 'gameOverSuccess'
+  | 'gameOverFail'
+
+export interface EditorSoundConfig {
+  eventType: EditorSoundEventType
+  enabled: boolean
+  frequency?: number
+  waveform?: OscillatorType
+  duration?: number
+  volume?: number
+  customLabel?: string
+}
+
+export type EditorFaultTriggerCondition =
+  | 'timeElapsed'
+  | 'rotationsCount'
+  | 'deviationExceeded'
+  | 'randomInterval'
+
+export interface EditorFaultEvent {
+  id: string
+  name: string
+  displayName: string
+  faultType: GearFaultType
+  triggerCondition: EditorFaultTriggerCondition
+  triggerValue: number
+  targetGearIds: number[]
+  durationSeconds: number
+  enabled: boolean
+}
+
+export interface EditorGearConfig {
+  id: number
+  x: number
+  y: number
+  size: 'large' | 'medium' | 'small'
+  connectedTo: number[]
+  initialAngle: number
+  label?: string
+}
+
+export interface EditorLevelConfig {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  gameMode: GameMode
+  duration: number
+  gears: EditorGearConfig[]
+  initialClockTime: ClockTime
+  targetClockTime: ClockTime
+  toleranceMinutes: number
+  scoreMultiplier: number
+  patrolPeriods?: PeriodConfig[]
+  faultEvents: EditorFaultEvent[]
+  soundConfigs: EditorSoundConfig[]
+  sideTowers?: Omit<SideTowerClock, 'isAligned'>[]
+  mechanisms?: ClockMechanism[]
+  requireAllAligned?: boolean
+  createdAt: number
+  updatedAt: number
+}

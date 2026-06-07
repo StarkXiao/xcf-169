@@ -4,9 +4,10 @@ import { workshopSystem } from '../game/WorkshopSystem'
 interface StartScreenProps {
   onStart: (mode: GameMode) => void
   onOpenWorkshop: () => void
+  onOpenEditor: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenEditor }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -65,6 +66,12 @@ function StartScreen({ onStart, onOpenWorkshop }: StartScreenProps) {
             主钟+侧塔联动校准<br />
             指针偏差 · 机关联动 · 限时目标
           </div>
+        </button>
+      </div>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <button className="editor-entry-btn" onClick={onOpenEditor}>
+          ✏️ 关卡编辑器
         </button>
       </div>
       <div className="patrol-hint">
