@@ -235,6 +235,7 @@ export class MultiClockSystem {
       sideTowers,
       mechanisms,
       isCompleted: false,
+      isLocked: false,
       allAligned: false,
       totalDeviation,
     }
@@ -293,8 +294,17 @@ export class MultiClockSystem {
     return this.state.sideTowers.length
   }
 
+  lock(): void {
+    this.state.isCompleted = true
+    this.state.isLocked = true
+  }
+
+  isLocked(): boolean {
+    return this.state.isLocked || this.state.isCompleted
+  }
+
   advanceMainClock(minutesDelta: number): void {
-    if (this.state.isCompleted) return
+    if (this.isLocked()) return
 
     const currentMins = clockTimeToMinutes(this.state.mainClockCurrent)
     const newMins = currentMins + minutesDelta
@@ -333,7 +343,7 @@ export class MultiClockSystem {
   }
 
   advanceSideTower(towerId: string, minutesDelta: number): void {
-    if (this.state.isCompleted) return
+    if (this.isLocked()) return
 
     const tower = this.state.sideTowers.find((t) => t.id === towerId)
     if (!tower) return

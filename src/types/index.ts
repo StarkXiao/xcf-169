@@ -175,6 +175,7 @@ export interface MultiClockState {
   sideTowers: SideTowerClock[]
   mechanisms: ClockMechanism[]
   isCompleted: boolean
+  isLocked: boolean
   allAligned: boolean
   totalDeviation: number
 }

@@ -11,6 +11,7 @@ interface SideTowerVisual {
   deviationText: Phaser.GameObjects.Text
   statusIndicator: Phaser.GameObjects.Graphics
   alignmentRing: Phaser.GameObjects.Graphics
+  hitArea: Phaser.GameObjects.Zone
 }
 
 interface MechanismVisual {
@@ -28,9 +29,11 @@ export class MultiClockScene extends Phaser.Scene {
   private mainClockMinuteHand!: Phaser.GameObjects.Graphics
   private mainClockTargetHour!: Phaser.GameObjects.Graphics
   private mainClockTargetMinute!: Phaser.GameObjects.Graphics
+  private mainClockHitArea!: Phaser.GameObjects.Zone
   private mainClockCenterX = 0
   private mainClockCenterY = 0
   private mainClockRadius = 0
+  private interactionsLocked = false
   private levelConfig: MultiClockLevelConfig | null = null
   private gearMaterial: GearMaterialConfig = GEAR_MATERIALS[0]
   private workshopEffects: WorkshopEffects = {
@@ -67,6 +70,18 @@ export class MultiClockScene extends Phaser.Scene {
   ) {
     this.onMainClockClick = onMainClockClick
     this.onSideTowerClick = onSideTowerClick
+  }
+
+  lockInteractions(): void {
+    this.interactionsLocked = true
+    if (this.mainClockHitArea && this.mainClockHitArea.input) {
+      this.mainClockHitArea.disableInteractive()
+    }
+    this.sideTowers.forEach((towerVisual) => {
+      if (towerVisual.hitArea && towerVisual.hitArea.input) {
+        towerVisual.hitArea.disableInteractive()
+      }
+    })
   }
 
   create() {
@@ -260,9 +275,11 @@ export class MultiClockScene extends Phaser.Scene {
     hitArea.setInteractive({ useHandCursor: true })
     hitArea.setDepth(15)
     hitArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.interactionsLocked) return
       const direction: 1 | -1 = pointer.x >= cx ? 1 : -1
       this.onMainClockClick?.(direction)
     })
+    this.mainClockHitArea = hitArea
   }
 
   private createSideTowers() {
@@ -362,6 +379,7 @@ export class MultiClockScene extends Phaser.Scene {
       hitArea.setInteractive({ useHandCursor: true })
       hitArea.setDepth(10)
       hitArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+        if (this.interactionsLocked) return
         const localX = pointer.x - cx
         const direction: 1 | -1 = localX >= 0 ? 1 : -1
         this.onSideTowerClick?.(tower.id, direction)
@@ -375,6 +393,7 @@ export class MultiClockScene extends Phaser.Scene {
         deviationText,
         statusIndicator,
         alignmentRing,
+        hitArea,
       })
     })
   }

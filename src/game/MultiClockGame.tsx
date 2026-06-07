@@ -34,6 +34,9 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
   const timerRef = useRef<TimerSystem | null>(null)
   const soundRef = useRef<SoundManager | null>(null)
   const sceneRef = useRef<MultiClockScene | null>(null)
+  const gameEndedRef = useRef(false)
+  const fineAdjustModeRef = useRef(false)
+  const onGameEndRef = useRef(onGameEnd)
 
   const levelConfig = useRef<MultiClockLevelConfig>(
     MULTI_CLOCK_LEVELS.find((l) => l.id === levelId) ?? MULTI_CLOCK_LEVELS[0],
@@ -53,9 +56,22 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
   )
   const [fineAdjustMode, setFineAdjustMode] = useState(false)
 
+  useEffect(() => {
+    gameEndedRef.current = gameEnded
+  }, [gameEnded])
+
+  useEffect(() => {
+    fineAdjustModeRef.current = fineAdjustMode
+  }, [fineAdjustMode])
+
+  useEffect(() => {
+    onGameEndRef.current = onGameEnd
+  }, [onGameEnd])
+
   const handleGameEnd = useCallback(
     (success: boolean) => {
-      if (gameEnded) return
+      if (gameEndedRef.current) return
+      gameEndedRef.current = true
       setGameEnded(true)
 
       const mc = multiClockRef.current
@@ -64,6 +80,9 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
       const scene = sceneRef.current
 
       if (!mc || !timer || !sound) return
+
+      mc.lock()
+      scene?.lockInteractions()
 
       const remaining = timer.getTimeLeft()
       timer.stop()
@@ -81,10 +100,10 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
       workshopSystem.recordGameScore(result.score)
 
       setTimeout(() => {
-        onGameEnd(result)
+        onGameEndRef.current(result)
       }, 3000)
     },
-    [gameEnded, onGameEnd],
+    [],
   )
 
   useEffect(() => {
@@ -116,15 +135,15 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
 
     scene.setCallbacks(
       (direction: 1 | -1) => {
-        if (gameEnded) return
-        const delta = fineAdjustMode
+        if (gameEndedRef.current) return
+        const delta = fineAdjustModeRef.current
           ? MAIN_CLOCK_DELTA_SMALL * direction
           : MAIN_CLOCK_DELTA_LARGE * direction
         multiClock.advanceMainClock(delta)
         sound.playGearRotate()
       },
       (towerId: string, direction: 1 | -1) => {
-        if (gameEnded) return
+        if (gameEndedRef.current) return
         multiClock.advanceSideTower(towerId, SIDE_TOWER_DELTA * direction)
         sound.playGearSnap()
       },
