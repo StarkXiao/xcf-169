@@ -5,9 +5,10 @@ import { GearSystem } from './GearSystem'
 import { TimerSystem } from './TimerSystem'
 import { SoundManager } from './SoundManager'
 import { NightPatrolSystem, NIGHT_PERIODS } from './NightPatrolSystem'
+import { StormSystem } from './StormSystem'
 import { workshopSystem } from './WorkshopSystem'
 import GameHUD from '../ui/GameHUD'
-import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects } from '../types'
+import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
 
 interface GameProps {
   onGameEnd: (result: GameResult) => void
@@ -26,6 +27,7 @@ function Game({ onGameEnd, mode }: GameProps) {
   const soundRef = useRef<SoundManager | null>(null)
   const sceneRef = useRef<MainScene | null>(null)
   const patrolRef = useRef<NightPatrolSystem | null>(null)
+  const stormRef = useRef<StormSystem | null>(null)
 
   const isPatrolMode = mode === 'patrol'
 
@@ -50,6 +52,8 @@ function Game({ onGameEnd, mode }: GameProps) {
   const [workshopEffects, setWorkshopEffects] = useState<WorkshopEffects>(
     workshopSystem.getEffects(),
   )
+  const [stormState, setStormState] = useState<StormState | null>(null)
+  const [stormScoreImpact, setStormScoreImpact] = useState(0)
 
   const calculateClassicScore = useCallback((remaining: number, diffMinutes: number) => {
     const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
@@ -147,6 +151,7 @@ function Game({ onGameEnd, mode }: GameProps) {
     const sound = soundRef.current
     const scene = sceneRef.current
     const patrol = patrolRef.current
+    const storm = stormRef.current
 
     if (!gs || !timer || !sound) return
 
@@ -154,21 +159,27 @@ function Game({ onGameEnd, mode }: GameProps) {
     timer.stop()
     sound.playGameOver(success)
 
+    const stormImpact = storm ? storm.calculateScoreImpact() : 0
+
     if (isPatrolMode && patrol) {
       if (!success) {
         scene?.playFailureAnimation()
       }
       setTimeout(() => {
         const breakdown = patrol.getScoreBreakdown()
-        workshopSystem.recordGameScore(breakdown.total)
+        const finalScore = Math.max(0, breakdown.total + stormImpact)
+        workshopSystem.recordGameScore(finalScore)
         onGameEnd({
           success,
-          score: breakdown.total,
+          score: finalScore,
           timeLeft: success ? remaining : 0,
           isPatrolMode: true,
           periodsCleared: patrol.getPeriodsCleared(),
           totalPeriods: patrol.getTotalPeriods(),
-          patrolScoreBreakdown: breakdown,
+          patrolScoreBreakdown: {
+            ...breakdown,
+            total: finalScore,
+          },
         })
       }, 2500)
       return
@@ -182,13 +193,14 @@ function Game({ onGameEnd, mode }: GameProps) {
     }
 
     const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
-    const score = calculateClassicScore(remaining, diffMinutes)
-    workshopSystem.recordGameScore(score)
+    const baseScore = calculateClassicScore(remaining, diffMinutes)
+    const finalScore = Math.max(0, baseScore + stormImpact)
+    workshopSystem.recordGameScore(finalScore)
 
     setTimeout(() => {
       onGameEnd({
         success,
-        score,
+        score: finalScore,
         timeLeft: remaining,
       })
     }, 3000)
@@ -222,6 +234,64 @@ function Game({ onGameEnd, mode }: GameProps) {
     if (isPatrolMode) {
       sound.playWind(NIGHT_PERIODS[0].weather.wind)
     }
+
+    const storm = new StormSystem(gearIds, {
+      onStormWarning: (_secondsLeft) => {
+        sound.playSoundEvent('storm_warning')
+      },
+      onStormStart: () => {
+        scene.setWeather({ rain: 'storm', wind: 'storm', lightning: 'storm' })
+        sound.setWeatherAudio('storm', 'storm')
+        setWeather({ rain: 'storm', wind: 'storm', lightning: 'storm' })
+      },
+      onLightningStrike: (effect: LightningStrikeEffect) => {
+        sound.playSoundEvent('lightning_strike')
+        if (effect.targetTimeChanged && effect.newTargetTime) {
+          const newTarget = effect.newTargetTime
+          setTargetTime({ ...newTarget })
+          scene.setTargetTime(newTarget)
+        }
+        effect.affectedGearIds.forEach((gearId) => {
+          scene.flashGearFault(gearId)
+        })
+        scene.cameras?.main?.shake(200, 0.008)
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onRollbackUsed: (_strike: LightningStrikeEffect) => {
+        const tgt = gearSystem.getTargetTime()
+        setTargetTime({ ...tgt })
+        scene.setTargetTime(tgt)
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onStormEnd: (_stats: StormStats) => {
+        sound.playSoundEvent('storm_end')
+        if (isPatrolMode && patrol) {
+          const pw = patrol.getWeather()
+          scene.setWeather(pw)
+          sound.setWeatherAudio(pw.rain, pw.wind)
+          setWeather(pw)
+        } else {
+          scene.setWeather({ rain: 'light', wind: 'light', lightning: 'calm' })
+          sound.setWeatherAudio('light', 'calm')
+          setWeather({ rain: 'light', wind: 'light', lightning: 'calm' })
+        }
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onStateChange: (state) => {
+        setStormState({ ...state })
+      },
+    })
+    stormRef.current = storm
+
+    storm.setGearAccessors(
+      () => gearSystem.getGearsSnapshot(),
+      (gearId, angle) => gearSystem.setGearAngleDirect(gearId, angle),
+    )
+    storm.setTargetTimeAccessors(
+      () => gearSystem.getTargetTime(),
+      (time) => gearSystem.setTargetTime(time),
+    )
+    storm.setCurrentTimeAccessor(() => gearSystem.getCurrentTime())
 
     const initialDuration = isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME
     const timer = new TimerSystem(initialDuration, {
@@ -331,6 +401,7 @@ function Game({ onGameEnd, mode }: GameProps) {
           ;(window as unknown as { _patrolFaultInterval?: number })._patrolFaultInterval = interval
         }
 
+        storm.start()
         timer.start()
       } else {
         setTimeout(initScene, 100)
@@ -341,9 +412,20 @@ function Game({ onGameEnd, mode }: GameProps) {
     return () => {
       const interval = (window as unknown as { _patrolFaultInterval?: number })._patrolFaultInterval
       if (interval) clearInterval(interval)
+      storm.destroy()
       timer.destroy()
       sound.destroy()
       game.destroy(true)
+    }
+  }, [])
+
+  const handleRollback = useCallback(() => {
+    const storm = stormRef.current
+    const sound = soundRef.current
+    if (!storm) return
+    const result = storm.useRollback()
+    if (result && sound) {
+      sound.playSoundEvent('storm_rollback')
     }
   }, [])
 
@@ -372,6 +454,9 @@ function Game({ onGameEnd, mode }: GameProps) {
         faults={faults}
         score={currentScore}
         workshopEffects={workshopEffects}
+        stormState={stormState}
+        onRollback={handleRollback}
+        stormScoreImpact={stormScoreImpact}
       />
     </div>
   )

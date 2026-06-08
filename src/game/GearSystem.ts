@@ -161,6 +161,18 @@ export class GearSystem {
     return Array.from(this.gears.values())
   }
 
+  getGearsSnapshot(): { id: number; angle: number }[] {
+    return Array.from(this.gears.values()).map((g) => ({ id: g.id, angle: g.angle }))
+  }
+
+  setGearAngleDirect(gearId: number, angle: number): boolean {
+    const gear = this.gears.get(gearId)
+    if (!gear) return false
+    gear.angle = this.normalizeAngle(angle)
+    this.onGearRotate?.(gearId, gear.angle)
+    return true
+  }
+
   rotateGear(gearId: number, direction: 1 | -1): RotationResult {
     const gear = this.gears.get(gearId)
     if (!gear) {

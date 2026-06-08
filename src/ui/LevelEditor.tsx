@@ -41,6 +41,10 @@ const SOUND_EVENT_META: Record<SoundEvent, { label: string; defaultFreq: number;
   period_transition: { label: '时段过渡', defaultFreq: 380, defaultWave: 'sine', defaultDur: 0.5, defaultVol: 0.3 },
   alarm_ring: { label: '警报声响', defaultFreq: 700, defaultWave: 'square', defaultDur: 0.15, defaultVol: 0.4 },
   tower_align: { label: '塔楼对齐', defaultFreq: 780, defaultWave: 'sine', defaultDur: 0.3, defaultVol: 0.35 },
+  storm_warning: { label: '暴雨预警', defaultFreq: 280, defaultWave: 'sawtooth', defaultDur: 0.8, defaultVol: 0.35 },
+  lightning_strike: { label: '雷击闪电', defaultFreq: 120, defaultWave: 'sawtooth', defaultDur: 0.6, defaultVol: 0.5 },
+  storm_rollback: { label: '规则回滚', defaultFreq: 520, defaultWave: 'sine', defaultDur: 0.5, defaultVol: 0.4 },
+  storm_end: { label: '暴雨结束', defaultFreq: 440, defaultWave: 'sine', defaultDur: 0.6, defaultVol: 0.35 },
 }
 
 function createDefaultSoundConfigs(): EditorSoundConfig[] {

@@ -100,7 +100,132 @@ export class SoundManager {
       case 'tower_align':
         this.playScriptedSound(event, () => this.playBellChime())
         break
+      case 'storm_warning':
+        this.playScriptedSound(event, () => this.playStormWarning())
+        break
+      case 'lightning_strike':
+        this.playScriptedSound(event, () => this.playLightningStrike())
+        break
+      case 'storm_rollback':
+        this.playScriptedSound(event, () => this.playStormRollback())
+        break
+      case 'storm_end':
+        this.playScriptedSound(event, () => this.playStormEnd())
+        break
     }
+  }
+
+  playStormWarning(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(150, this.audioContext.currentTime)
+    osc.frequency.linearRampToValueAtTime(300, this.audioContext.currentTime + 0.3)
+    osc.frequency.linearRampToValueAtTime(150, this.audioContext.currentTime + 0.6)
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime)
+    gain.gain.linearRampToValueAtTime(0.15, this.audioContext.currentTime + 0.1)
+    gain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.7)
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.7)
+
+    setTimeout(() => {
+      if (!this.audioContext || !this.masterGain) return
+      const osc2 = this.audioContext.createOscillator()
+      const gain2 = this.audioContext.createGain()
+      osc2.type = 'sawtooth'
+      osc2.frequency.setValueAtTime(200, this.audioContext.currentTime)
+      osc2.frequency.linearRampToValueAtTime(350, this.audioContext.currentTime + 0.25)
+      gain2.gain.setValueAtTime(0, this.audioContext.currentTime)
+      gain2.gain.linearRampToValueAtTime(0.12, this.audioContext.currentTime + 0.05)
+      gain2.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.4)
+      osc2.connect(gain2)
+      gain2.connect(this.masterGain)
+      osc2.start()
+      osc2.stop(this.audioContext.currentTime + 0.4)
+    }, 350)
+  }
+
+  playLightningStrike(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const bufferSize = this.audioContext.sampleRate * 1.5
+    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 1.5)
+    }
+    const noise = this.audioContext.createBufferSource()
+    noise.buffer = buffer
+
+    const filter = this.audioContext.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(1200, this.audioContext.currentTime)
+    filter.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 1)
+
+    const gain = this.audioContext.createGain()
+    gain.gain.setValueAtTime(0.5, this.audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 1.2)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.masterGain)
+    noise.start()
+
+    const osc = this.audioContext.createOscillator()
+    const oscGain = this.audioContext.createGain()
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(80, this.audioContext.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(40, this.audioContext.currentTime + 0.5)
+    oscGain.gain.setValueAtTime(0.2, this.audioContext.currentTime)
+    oscGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.6)
+    osc.connect(oscGain)
+    oscGain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.6)
+  }
+
+  playStormRollback(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const freqs = [440, 550, 660, 880]
+    freqs.forEach((freq, i) => {
+      const osc = this.audioContext!.createOscillator()
+      const gain = this.audioContext!.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, this.audioContext!.currentTime + i * 0.08)
+      const startTime = this.audioContext!.currentTime + i * 0.08
+      gain.gain.setValueAtTime(0, startTime)
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.05)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3)
+      osc.connect(gain)
+      gain.connect(this.masterGain!)
+      osc.start(startTime)
+      osc.stop(startTime + 0.3)
+    })
+  }
+
+  playStormEnd(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    notes.forEach((freq, i) => {
+      const osc = this.audioContext!.createOscillator()
+      const gain = this.audioContext!.createGain()
+      osc.type = 'triangle'
+      osc.frequency.value = freq
+      const startTime = this.audioContext!.currentTime + i * 0.15
+      gain.gain.setValueAtTime(0, startTime)
+      gain.gain.linearRampToValueAtTime(0.2, startTime + 0.08)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.5)
+      osc.connect(gain)
+      gain.connect(this.masterGain!)
+      osc.start(startTime)
+      osc.stop(startTime + 0.5)
+    })
   }
 
   setGearMaterial(material: GearMaterialConfig): void {

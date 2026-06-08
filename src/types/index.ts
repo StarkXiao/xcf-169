@@ -204,6 +204,51 @@ export type SoundEvent =
   | 'period_transition'
   | 'alarm_ring'
   | 'tower_align'
+  | 'storm_warning'
+  | 'lightning_strike'
+  | 'storm_rollback'
+  | 'storm_end'
+
+export type StormPhase = 'idle' | 'warning' | 'active' | 'ended'
+
+export interface LightningStrikeEffect {
+  strikeId: string
+  timestamp: number
+  affectedGearIds: number[]
+  gearAngleChanges: Map<number, number>
+  targetTimeChanged: boolean
+  previousTargetTime?: ClockTime
+  newTargetTime?: ClockTime
+  scorePenalty: number
+}
+
+export interface StormState {
+  phase: StormPhase
+  intensity: WeatherIntensity
+  warningTimeLeft: number
+  activeTimeLeft: number
+  strikesThisStorm: number
+  rollbackCharges: number
+  totalStrikes: number
+}
+
+export interface StormCallbacks {
+  onStormWarning?: (secondsLeft: number) => void
+  onStormStart?: () => void
+  onLightningStrike?: (effect: LightningStrikeEffect) => void
+  onRollbackUsed?: (strike: LightningStrikeEffect) => void
+  onStormEnd?: (stats: StormStats) => void
+  onStateChange?: (state: StormState) => void
+}
+
+export interface StormStats {
+  totalStrikes: number
+  totalGearsAffected: number
+  targetTimesChanged: number
+  rollbacksUsed: number
+  scorePenalty: number
+  scoreBonus: number
+}
 
 export type EditorSoundEventType = SoundEvent
 

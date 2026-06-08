@@ -1,4 +1,4 @@
-import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects } from '../types'
+import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects, StormState } from '../types'
 import { FAULT_DESCRIPTIONS, WEATHER_DESCRIPTIONS } from '../game/NightPatrolSystem'
 import { workshopSystem } from '../game/WorkshopSystem'
 
@@ -17,6 +17,9 @@ interface GameHUDProps {
   faults?: ActiveGearFault[]
   score?: number
   workshopEffects?: WorkshopEffects
+  stormState?: StormState | null
+  onRollback?: () => void
+  stormScoreImpact?: number
 }
 
 function GameHUD({
@@ -34,6 +37,9 @@ function GameHUD({
   faults = [],
   score = 0,
   workshopEffects,
+  stormState = null,
+  onRollback,
+  stormScoreImpact = 0,
 }: GameHUDProps) {
   const material = workshopSystem.getCurrentMaterial()
   const activeTools = workshopSystem.getActiveToolConfigs()
@@ -88,6 +94,51 @@ function GameHUD({
           </div>
         </div>
       </div>
+
+      {stormState && stormState.phase !== 'idle' && (
+        <div className={`storm-panel storm-${stormState.phase}`}>
+          {stormState.phase === 'warning' && (
+            <div className="storm-warning-banner">
+              <span className="storm-icon">⚠️</span>
+              <span className="storm-title">暴雨预警！</span>
+              <span className="storm-countdown">{Math.ceil(stormState.warningTimeLeft)}秒后雷击</span>
+              <span className="storm-hint">准备使用回滚！</span>
+            </div>
+          )}
+          {stormState.phase === 'active' && (
+            <div className="storm-active-banner">
+              <span className="storm-icon">⛈️</span>
+              <span className="storm-title">暴雨来袭</span>
+              <span className="storm-progress">
+                雷击 {stormState.strikesThisStorm} 次 · 剩余 {Math.ceil(stormState.activeTimeLeft)}秒
+              </span>
+              <div className="storm-controls">
+                <button
+                  className="rollback-btn"
+                  onClick={onRollback}
+                  disabled={stormState.rollbackCharges <= 0}
+                >
+                  🔄 回滚雷击 ({stormState.rollbackCharges})
+                </button>
+              </div>
+            </div>
+          )}
+          {stormState.phase === 'ended' && (
+            <div className="storm-ended-banner">
+              <span className="storm-icon">🌤️</span>
+              <span className="storm-title">暴雨过境</span>
+              <span className="storm-summary">
+                共 {stormState.totalStrikes} 次雷击
+                {stormScoreImpact !== 0 && (
+                  <span className={stormScoreImpact >= 0 ? 'score-bonus' : 'score-penalty'}>
+                    （{stormScoreImpact >= 0 ? '+' : ''}{stormScoreImpact}分）
+                  </span>
+                )}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {isPatrolMode && (
         <div className="patrol-status-panel">

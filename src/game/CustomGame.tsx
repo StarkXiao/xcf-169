@@ -5,9 +5,10 @@ import { GearSystem } from './GearSystem'
 import { TimerSystem } from './TimerSystem'
 import { SoundManager } from './SoundManager'
 import { FaultEventEngine } from './FaultEventEngine'
+import { StormSystem } from './StormSystem'
 import { workshopSystem } from './WorkshopSystem'
 import GameHUD from '../ui/GameHUD'
-import type { GameResult, ClockTime, WeatherState, ActiveGearFault, GearFaultType, WorkshopEffects } from '../types'
+import type { GameResult, ClockTime, WeatherState, ActiveGearFault, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
 import type { LoadedLevel } from './LevelLoader'
 
 interface CustomGameProps {
@@ -29,6 +30,7 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
   const sceneRef = useRef<CustomMainScene | null>(null)
   const faultEngineRef = useRef<FaultEventEngine | null>(null)
   const faultEngineLoopRef = useRef<number | null>(null)
+  const stormRef = useRef<StormSystem | null>(null)
 
   const [timeLeft, setTimeLeft] = useState(level.duration)
   const totalTime = level.duration
@@ -36,16 +38,18 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
   const [targetTime, setTargetTime] = useState<ClockTime>({ ...level.targetClockTime })
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [gameEnded, setGameEnded] = useState(false)
-  const weather: WeatherState = {
+  const [weather, setWeather] = useState<WeatherState>({
     rain: 'calm',
     wind: 'calm',
     lightning: 'calm',
-  }
+  })
   const [faults, setFaults] = useState<ActiveGearFault[]>([])
   const currentScore = 0
   const [workshopEffects, setWorkshopEffects] = useState<WorkshopEffects>(
     workshopSystem.getEffects(),
   )
+  const [stormState, setStormState] = useState<StormState | null>(null)
+  const [stormScoreImpact, setStormScoreImpact] = useState(0)
 
   const calculateScore = useCallback((remaining: number, diffMinutes: number) => {
     const tolerance = level.toleranceMinutes
@@ -65,6 +69,7 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
     const sound = soundRef.current
     const scene = sceneRef.current
     const faultEngine = faultEngineRef.current
+    const storm = stormRef.current
 
     if (!gs || !timer || !sound) return
 
@@ -85,18 +90,30 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
     }
     faultEngine?.destroy()
 
+    const stormImpact = storm ? storm.calculateScoreImpact() : 0
     const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
-    const score = calculateScore(remaining, diffMinutes)
-    workshopSystem.recordGameScore(score)
+    const baseScore = calculateScore(remaining, diffMinutes)
+    const finalScore = Math.max(0, baseScore + stormImpact)
+    workshopSystem.recordGameScore(finalScore)
 
     setTimeout(() => {
       onGameEnd({
         success,
-        score,
+        score: finalScore,
         timeLeft: remaining,
       })
     }, 3000)
   }, [gameEnded, onGameEnd, calculateScore])
+
+  const handleRollback = useCallback(() => {
+    const storm = stormRef.current
+    const sound = soundRef.current
+    if (!storm) return
+    const result = storm.useRollback()
+    if (result && sound) {
+      sound.playSoundEvent('storm_rollback')
+    }
+  }, [])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -124,6 +141,58 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
 
     gearSystem.setInitialTime(level.initialClockTime)
     gearSystem.setTargetTime(level.targetClockTime)
+
+    const gearIds = level.gears.map((g) => g.id)
+    const storm = new StormSystem(gearIds, {
+      onStormWarning: (_secondsLeft) => {
+        sound.playSoundEvent('storm_warning')
+      },
+      onStormStart: () => {
+        scene.setWeather({ rain: 'storm', wind: 'storm', lightning: 'storm' })
+        sound.setWeatherAudio('storm', 'storm')
+        setWeather({ rain: 'storm', wind: 'storm', lightning: 'storm' })
+      },
+      onLightningStrike: (effect: LightningStrikeEffect) => {
+        sound.playSoundEvent('lightning_strike')
+        if (effect.targetTimeChanged && effect.newTargetTime) {
+          const newTarget = effect.newTargetTime
+          setTargetTime({ ...newTarget })
+          scene.setTargetTime(newTarget)
+        }
+        effect.affectedGearIds.forEach((gearId) => {
+          scene.flashGearFault(gearId)
+        })
+        scene.cameras?.main?.shake(200, 0.008)
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onRollbackUsed: (_strike: LightningStrikeEffect) => {
+        const tgt = gearSystem.getTargetTime()
+        setTargetTime({ ...tgt })
+        scene.setTargetTime(tgt)
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onStormEnd: (_stats: StormStats) => {
+        sound.playSoundEvent('storm_end')
+        scene.setWeather({ rain: 'calm', wind: 'calm', lightning: 'calm' })
+        sound.setWeatherAudio('calm', 'calm')
+        setWeather({ rain: 'calm', wind: 'calm', lightning: 'calm' })
+        setStormScoreImpact(storm.calculateScoreImpact())
+      },
+      onStateChange: (state) => {
+        setStormState({ ...state })
+      },
+    })
+    stormRef.current = storm
+
+    storm.setGearAccessors(
+      () => gearSystem.getGearsSnapshot(),
+      (gearId, angle) => gearSystem.setGearAngleDirect(gearId, angle),
+    )
+    storm.setTargetTimeAccessors(
+      () => gearSystem.getTargetTime(),
+      (time) => gearSystem.setTargetTime(time),
+    )
+    storm.setCurrentTimeAccessor(() => gearSystem.getCurrentTime())
 
     const timer = new TimerSystem(level.duration, {
       onTick: (t) => setTimeLeft(Math.ceil(t)),
@@ -240,6 +309,7 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
         }, 250)
         faultEngineLoopRef.current = engineLoop
 
+        storm.start()
         timer.start()
       } else {
         setTimeout(initScene, 100)
@@ -252,6 +322,7 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
         clearInterval(faultEngineLoopRef.current)
         faultEngineLoopRef.current = null
       }
+      storm.destroy()
       faultEngine.destroy()
       timer.destroy()
       sound.clearSoundScripts()
@@ -285,6 +356,9 @@ export function CustomGame({ level, onGameEnd, onExit }: CustomGameProps) {
         faults={faults}
         score={currentScore}
         workshopEffects={workshopEffects}
+        stormState={stormState}
+        onRollback={handleRollback}
+        stormScoreImpact={stormScoreImpact}
       />
       <button
         onClick={onExit}

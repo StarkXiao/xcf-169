@@ -110,6 +110,18 @@ export function loadEditorLevel(raw: unknown): LoadedLevel {
     tower_align: {
       event: 'tower_align', enabled: true, frequency: 780, waveform: 'sine', duration: 0.3, volume: 0.35,
     },
+    storm_warning: {
+      event: 'storm_warning', enabled: true, frequency: 280, waveform: 'sawtooth', duration: 0.8, volume: 0.35,
+    },
+    lightning_strike: {
+      event: 'lightning_strike', enabled: true, frequency: 120, waveform: 'sawtooth', duration: 0.6, volume: 0.5,
+    },
+    storm_rollback: {
+      event: 'storm_rollback', enabled: true, frequency: 520, waveform: 'sine', duration: 0.5, volume: 0.4,
+    },
+    storm_end: {
+      event: 'storm_end', enabled: true, frequency: 440, waveform: 'sine', duration: 0.6, volume: 0.35,
+    },
   }
 
   const soundConfigs: Record<SoundEvent, LoadedSoundConfig> = { ...defaultSoundConfigs }
