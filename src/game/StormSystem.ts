@@ -50,6 +50,7 @@ export class StormSystem {
   private totalGearsAffected = 0
   private totalTargetChanges = 0
   private totalScorePenalty = 0
+  private totalSurvivalBonus = 0
   private rollbacksUsed = 0
 
   private getGearsSnapshot?: () => GearSnapshot[]
@@ -254,7 +255,6 @@ export class StormSystem {
     this.strikeHistory.push(effect)
     this.state.strikesThisStorm++
     this.state.totalStrikes++
-    this.totalGearsAffected += affectedGearIds.length
 
     this.callbacks.onLightningStrike?.(effect)
     this.emitStateChange()
@@ -281,6 +281,12 @@ export class StormSystem {
       this.setTargetTime(targetStrike.previousTargetTime)
     }
 
+    this.totalScorePenalty = Math.max(0, this.totalScorePenalty - targetStrike.scorePenalty)
+    this.totalGearsAffected = Math.max(0, this.totalGearsAffected - targetStrike.affectedGearIds.length)
+    if (targetStrike.targetTimeChanged) {
+      this.totalTargetChanges = Math.max(0, this.totalTargetChanges - 1)
+    }
+
     this.state.rollbackCharges--
     this.rollbacksUsed++
 
@@ -292,6 +298,7 @@ export class StormSystem {
 
   private endStorm(): void {
     this.state.phase = 'ended'
+    this.totalSurvivalBonus += STORM_CONFIG.stormSurvivalBonus
     const stats = this.getStats()
     this.callbacks.onStormEnd?.(stats)
     this.emitStateChange()
@@ -343,7 +350,7 @@ export class StormSystem {
       targetTimesChanged: this.totalTargetChanges,
       rollbacksUsed: this.rollbacksUsed,
       scorePenalty: this.totalScorePenalty,
-      scoreBonus: this.state.phase === 'ended' || this.state.phase === 'idle' ? STORM_CONFIG.stormSurvivalBonus : 0,
+      scoreBonus: this.totalSurvivalBonus,
     }
   }
 
@@ -366,6 +373,7 @@ export class StormSystem {
     this.totalGearsAffected = 0
     this.totalTargetChanges = 0
     this.totalScorePenalty = 0
+    this.totalSurvivalBonus = 0
     this.rollbacksUsed = 0
     this.scheduleNextStorm()
   }
