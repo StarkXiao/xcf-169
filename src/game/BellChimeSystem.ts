@@ -535,13 +535,13 @@ export class BellChimeSystem {
           beat.accent === 'strong' ? 1.0 : beat.accent === 'weak' ? 0.7 : 0.5
 
         if (pattern.type === 'arpeggio') {
-          const pitchPool = preset.basePitches
           layers.forEach((layer, layerIdx) => {
             const intervals = HARMONY_INTERVALS[layer.harmonyType]
             intervals.forEach((interval, intIdx) => {
-              const arpIdx = (noteIndex + intIdx) % pitchPool.length
-              const basePitch = pitchPool[arpIdx]
-              const finalPitch = shiftPitch(basePitch, interval + layer.octaveShift * 12)
+              const arpIdx = (noteIndex + intIdx) % Math.max(1, preset.basePitches.length)
+              const presetPitch = preset.basePitches[arpIdx] ?? layer.basePitch
+              const semitoneOffset = PITCH_ORDER.indexOf(presetPitch) - PITCH_ORDER.indexOf('C4')
+              const finalPitch = shiftPitch(layer.basePitch, interval + layer.octaveShift * 12 + semitoneOffset)
               notes.push({
                 id: `note_${genId()}`,
                 pitch: finalPitch,
@@ -558,7 +558,8 @@ export class BellChimeSystem {
             const intervals = HARMONY_INTERVALS[layer.harmonyType]
             intervals.forEach((interval) => {
               preset.basePitches.forEach((bp, bpIdx) => {
-                const finalPitch = shiftPitch(bp, interval + layer.octaveShift * 12)
+                const semitoneOffset = PITCH_ORDER.indexOf(bp) - PITCH_ORDER.indexOf('C4')
+                const finalPitch = shiftPitch(layer.basePitch, interval + layer.octaveShift * 12 + semitoneOffset)
                 notes.push({
                   id: `note_${genId()}`,
                   pitch: finalPitch,
@@ -575,7 +576,8 @@ export class BellChimeSystem {
             const intervals = HARMONY_INTERVALS[layer.harmonyType]
             intervals.forEach((interval) => {
               preset.basePitches.forEach((bp, bpIdx) => {
-                const finalPitch = shiftPitch(bp, interval + layer.octaveShift * 12)
+                const semitoneOffset = PITCH_ORDER.indexOf(bp) - PITCH_ORDER.indexOf('C4')
+                const finalPitch = shiftPitch(layer.basePitch, interval + layer.octaveShift * 12 + semitoneOffset)
                 notes.push({
                   id: `note_${genId()}`,
                   pitch: finalPitch,

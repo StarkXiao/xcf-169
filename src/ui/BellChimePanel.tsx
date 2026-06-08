@@ -70,6 +70,10 @@ function BellChimePanel({ onClose }: BellChimePanelProps) {
   }
 
   const handlePreviewPreset = (preset: BellChimePreset) => {
+    if (isPlaying) {
+      stopPlayback()
+      return
+    }
     stopPlayback()
     setIsPlaying(true)
     const playback = soundManager.previewBellPreset(preset, {

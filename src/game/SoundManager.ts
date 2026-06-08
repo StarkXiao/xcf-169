@@ -725,6 +725,7 @@ export class SoundManager {
     }
 
     const scheduledOscs: OscillatorNode[] = []
+    const scheduledTimeouts: number[] = []
     const ctxNow = this.audioContext.currentTime
 
     notes.forEach((note) => {
@@ -780,23 +781,29 @@ export class SoundManager {
       }
 
       if (options.onNoteStart) {
-        setTimeout(() => options.onNoteStart?.(note), note.startTime * 1000)
+        const t = window.setTimeout(() => options.onNoteStart?.(note), note.startTime * 1000)
+        scheduledTimeouts.push(t)
       }
     })
 
     if (options.onComplete) {
       const maxEnd = notes.length > 0 ? Math.max(...notes.map((n) => n.startTime + n.duration)) : 0
-      setTimeout(() => options.onComplete?.(), (maxEnd + 1) * 1000)
+      const t = window.setTimeout(() => options.onComplete?.(), (maxEnd + 1) * 1000)
+      scheduledTimeouts.push(t)
     }
 
+    let stopped = false
     return {
       stop: () => {
+        if (stopped) return
+        stopped = true
         scheduledOscs.forEach((o) => {
           try {
             o.stop()
             o.disconnect()
           } catch {}
         })
+        scheduledTimeouts.forEach((t) => window.clearTimeout(t))
       },
     }
   }
