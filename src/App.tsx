@@ -6,12 +6,15 @@ import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
+import BellChimePanel from './ui/BellChimePanel'
 import LevelEditor from './ui/LevelEditor'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig } from './types'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
+import { workshopSystem } from './game/WorkshopSystem'
+import { bellChimeSystem } from './game/BellChimeSystem'
 
 type AnyGameResult = GameResult | MultiClockGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'editor' | 'customGame'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -31,6 +34,9 @@ function App() {
 
   const handleGameEnd = useCallback((result: AnyGameResult) => {
     setGameResult(result)
+    workshopSystem.recordGameScore(result.score)
+    bellChimeSystem.recordScore(result.score)
+    bellChimeSystem.resetTriggers()
     goTo('result')
   }, [goTo])
 
@@ -51,6 +57,9 @@ function App() {
 
   const handleOpenWorkshop = useCallback(() => goTo('workshop'), [goTo])
   const handleCloseWorkshop = useCallback(() => goTo('menu'), [goTo])
+
+  const handleOpenBellChime = useCallback(() => goTo('bellchime'), [goTo])
+  const handleCloseBellChime = useCallback(() => goTo('menu'), [goTo])
 
   const handleOpenEditor = useCallback(() => goTo('editor'), [goTo])
   const handleCloseEditor = useCallback(() => goTo('menu'), [goTo])
@@ -96,8 +105,9 @@ function App() {
   const showCustomGame = view === 'customGame'
   const showResult = view === 'result'
   const showWorkshop = view === 'workshop'
+  const showBellChime = view === 'bellchime'
   const showEditor = view === 'editor'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showEditor
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor
 
   return (
     <div className="app-container">
@@ -112,6 +122,7 @@ function App() {
         <StartScreen
           onStart={handleStart}
           onOpenWorkshop={handleOpenWorkshop}
+          onOpenBellChime={handleOpenBellChime}
           onOpenEditor={handleOpenEditor}
           onImportLevel={() => fileInputRef.current?.click()}
         />
@@ -129,23 +140,26 @@ function App() {
           onExit={handleExitCustomGame}
         />
       )}
-      {showResult && !showWorkshop && !isMultiClockResult(gameResult) && (
+      {showResult && !showWorkshop && !showBellChime && !isMultiClockResult(gameResult) && (
         <GameOverPanel
           result={gameResult as GameResult}
           onRestart={handleRestart}
           onBackToMenu={handleBackToMenu}
           onOpenWorkshop={handleOpenWorkshop}
+          onOpenBellChime={handleOpenBellChime}
         />
       )}
-      {showResult && !showWorkshop && isMultiClockResult(gameResult) && (
+      {showResult && !showWorkshop && !showBellChime && isMultiClockResult(gameResult) && (
         <MultiClockGameOverPanel
           result={gameResult as MultiClockGameResult}
           onRestart={handleRestart}
           onBackToMenu={handleBackToMenu}
           onOpenWorkshop={handleOpenWorkshop}
+          onOpenBellChime={handleOpenBellChime}
         />
       )}
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
+      {showBellChime && <BellChimePanel onClose={handleCloseBellChime} />}
       {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} />}
     </div>
   )

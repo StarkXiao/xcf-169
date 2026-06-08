@@ -312,3 +312,127 @@ export interface EditorLevelConfig {
   createdAt: number
   updatedAt: number
 }
+
+export type BellNotePitch =
+  | 'C3' | 'D3' | 'E3' | 'F3' | 'G3' | 'A3' | 'B3'
+  | 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4'
+  | 'C5' | 'D5' | 'E5' | 'F5' | 'G5' | 'A5' | 'B5'
+  | 'C6'
+
+export const BELL_NOTE_FREQUENCIES: Record<BellNotePitch, number> = {
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+  C6: 1046.50,
+}
+
+export interface BellNote {
+  id: string
+  pitch: BellNotePitch
+  startTime: number
+  duration: number
+  velocity: number
+  layer: number
+}
+
+export type HarmonyType = 'unison' | 'third' | 'fifth' | 'octave' | 'triad' | 'seventh'
+
+export interface HarmonyLayerConfig {
+  id: string
+  name: string
+  displayName: string
+  enabled: boolean
+  harmonyType: HarmonyType
+  basePitch: BellNotePitch
+  octaveShift: number
+  detune: number
+  volume: number
+  attack: number
+  release: number
+}
+
+export type BellTriggerType =
+  | 'time_aligned'
+  | 'level_success'
+  | 'level_fail'
+  | 'period_transition'
+  | 'tower_align'
+  | 'gear_snap'
+  | 'storm_end'
+  | 'custom_score'
+
+export interface BellTriggerCondition {
+  id: string
+  name: string
+  displayName: string
+  type: BellTriggerType
+  enabled: boolean
+  threshold?: number
+  repeatable: boolean
+  cooldownMs: number
+  description: string
+}
+
+export type RhythmPatternType =
+  | 'steady'
+  | 'crescendo'
+  | 'diminuendo'
+  | 'waltz'
+  | 'marching'
+  | 'fanfare'
+  | 'arpeggio'
+
+export interface RhythmBeat {
+  index: number
+  timeOffset: number
+  accent: 'none' | 'weak' | 'strong'
+  rest: boolean
+}
+
+export interface RhythmPatternConfig {
+  id: string
+  name: string
+  displayName: string
+  type: RhythmPatternType
+  bpm: number
+  beatsPerMeasure: number
+  beats: RhythmBeat[]
+  repeatCount: number
+  swingFactor: number
+}
+
+export interface BellChimePreset {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  unlockScore: number
+  basePitches: BellNotePitch[]
+  rhythmPatternId: string
+  harmonyLayerIds: string[]
+  triggerIds: string[]
+  isDefault?: boolean
+}
+
+export interface BellChimeWorkshopState {
+  currentPresetId: string | null
+  unlockedPresetIds: string[]
+  customPresets: BellChimePreset[]
+  rhythmPatterns: RhythmPatternConfig[]
+  harmonyLayers: HarmonyLayerConfig[]
+  triggers: BellTriggerCondition[]
+  totalBellScoreEarned: number
+}
+
+export interface BellChimePlaybackOptions {
+  volumeMultiplier?: number
+  playbackRate?: number
+  onNoteStart?: (note: BellNote) => void
+  onComplete?: () => void
+}
+
+export interface BellChimeRuntimeStats {
+  lastTriggerTime: number
+  playCount: number
+  totalNotesPlayed: number
+}

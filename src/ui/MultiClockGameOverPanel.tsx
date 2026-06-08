@@ -5,6 +5,7 @@ interface MultiClockGameOverPanelProps {
   onRestart: () => void
   onBackToMenu?: () => void
   onOpenWorkshop?: () => void
+  onOpenBellChime?: () => void
 }
 
 function MultiClockGameOverPanel({
@@ -12,6 +13,7 @@ function MultiClockGameOverPanel({
   onRestart,
   onBackToMenu,
   onOpenWorkshop,
+  onOpenBellChime,
 }: MultiClockGameOverPanelProps) {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -113,6 +115,11 @@ function MultiClockGameOverPanel({
         {onOpenWorkshop && (
           <button className="restart-btn workshop-btn-overlay" onClick={onOpenWorkshop}>
             🔧 升级装备
+          </button>
+        )}
+        {onOpenBellChime && (
+          <button className="restart-btn bellchime-btn-overlay" onClick={onOpenBellChime}>
+            🔔 钟声谱面
           </button>
         )}
         {onBackToMenu && (

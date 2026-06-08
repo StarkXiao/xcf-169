@@ -4,11 +4,12 @@ import { workshopSystem } from '../game/WorkshopSystem'
 interface StartScreenProps {
   onStart: (mode: GameMode) => void
   onOpenWorkshop: () => void
+  onOpenBellChime: () => void
   onOpenEditor: () => void
   onImportLevel?: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenEditor, onImportLevel }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -33,9 +34,14 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenEditor, onImportLevel }: S
             ⚙️ {currentMaterial.displayName}
           </span>
         </div>
-        <button className="start-btn workshop-btn" onClick={onOpenWorkshop}>
-          🔧 钟表工坊
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="start-btn workshop-btn" onClick={onOpenWorkshop}>
+            🔧 钟表工坊
+          </button>
+          <button className="start-btn workshop-btn bellchime-entry-btn" onClick={onOpenBellChime}>
+            🔔 钟声谱面
+          </button>
+        </div>
       </div>
 
       <p className="story-text">

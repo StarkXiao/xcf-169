@@ -37,6 +37,7 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
   const gameEndedRef = useRef(false)
   const fineAdjustModeRef = useRef(false)
   const onGameEndRef = useRef(onGameEnd)
+  const alignedTowersRef = useRef<Set<string>>(new Set())
 
   const levelConfig = useRef<MultiClockLevelConfig>(
     MULTI_CLOCK_LEVELS.find((l) => l.id === levelId) ?? MULTI_CLOCK_LEVELS[0],
@@ -86,9 +87,11 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
 
       const remaining = timer.getTimeLeft()
       timer.stop()
+      sound.playSoundEvent(success ? 'level_success' : 'level_fail')
       sound.playGameOver(success)
 
       if (success && scene) {
+        sound.playSoundEvent('tower_align')
         sound.playBellChime()
         sound.playAlignSuccess()
         scene.playVictoryAnimation()
@@ -156,6 +159,12 @@ function MultiClockGame({ onGameEnd, levelId = 'level1' }: MultiClockGameProps) 
 
     multiClock.setOnSideTowerChange((tower) => {
       scene.updateSideTower(tower)
+      if (tower.isAligned && !alignedTowersRef.current.has(tower.id) && !gameEndedRef.current) {
+        alignedTowersRef.current.add(tower.id)
+        sound.playSoundEvent('tower_align')
+      } else if (!tower.isAligned && alignedTowersRef.current.has(tower.id)) {
+        alignedTowersRef.current.delete(tower.id)
+      }
     })
 
     multiClock.setOnMechanismActivate((mech) => {

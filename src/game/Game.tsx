@@ -88,6 +88,7 @@ function Game({ onGameEnd, mode }: GameProps) {
     const breakdown = patrol.getScoreBreakdown()
     setCurrentScore(breakdown.total)
 
+    sound.playSoundEvent('time_aligned')
     sound.playAlignSuccess()
     sound.playBellChime()
     scene.playVictoryAnimation()
@@ -157,6 +158,7 @@ function Game({ onGameEnd, mode }: GameProps) {
 
     const remaining = timer.getTimeLeft()
     timer.stop()
+    sound.playSoundEvent(success ? 'level_success' : 'level_fail')
     sound.playGameOver(success)
 
     const stormImpact = storm ? storm.calculateScoreImpact() : 0

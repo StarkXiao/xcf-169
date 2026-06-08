@@ -5,9 +5,10 @@ interface GameOverPanelProps {
   onRestart: () => void
   onBackToMenu?: () => void
   onOpenWorkshop?: () => void
+  onOpenBellChime?: () => void
 }
 
-function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop }: GameOverPanelProps) {
+function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpenBellChime }: GameOverPanelProps) {
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
@@ -112,6 +113,11 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop }: Game
         {onOpenWorkshop && (
           <button className="restart-btn workshop-btn-overlay" onClick={onOpenWorkshop}>
             🔧 升级装备
+          </button>
+        )}
+        {onOpenBellChime && (
+          <button className="restart-btn bellchime-btn-overlay" onClick={onOpenBellChime}>
+            🔔 钟声谱面
           </button>
         )}
         {onBackToMenu && (

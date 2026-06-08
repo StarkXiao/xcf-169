@@ -1,6 +1,16 @@
-import type { WeatherIntensity, GearMaterialConfig, SoundEvent } from '../types'
+import type {
+  WeatherIntensity,
+  GearMaterialConfig,
+  SoundEvent,
+  BellNote,
+  BellChimePlaybackOptions,
+  BellChimePreset,
+  HarmonyLayerConfig,
+} from '../types'
+import { BELL_NOTE_FREQUENCIES } from '../types'
 import type { LoadedSoundConfig } from './LevelLoader'
 import { GEAR_MATERIALS } from './WorkshopSystem'
+import { bellChimeSystem } from './BellChimeSystem'
 
 const RAIN_INTENSITY_GAIN: Record<WeatherIntensity, number> = {
   calm: 0,
@@ -69,6 +79,7 @@ export class SoundManager {
   }
 
   playSoundEvent(event: SoundEvent): void {
+    this.triggerBellChime(event)
     switch (event) {
       case 'gear_click':
         this.playScriptedSound(event, () => this.playGearRotate())
@@ -652,6 +663,192 @@ export class SoundManager {
     }
   }
 
+  playBellNote(
+    frequency: number,
+    duration: number,
+    volume: number,
+    options: { attack?: number; release?: number; detune?: number; waveform?: OscillatorType } = {},
+  ): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const { attack = 0.02, release = 1.5, detune = 0, waveform = 'sine' } = options
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    const filter = this.audioContext.createBiquadFilter()
+
+    osc.type = waveform
+    osc.frequency.setValueAtTime(frequency, this.audioContext.currentTime)
+    osc.detune.setValueAtTime(detune, this.audioContext.currentTime)
+
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(frequency * 2, this.audioContext.currentTime)
+    filter.Q.setValueAtTime(1, this.audioContext.currentTime)
+
+    const peakVolume = Math.max(0.001, volume * 0.35)
+    const now = this.audioContext.currentTime
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(peakVolume, now + attack)
+    gain.gain.exponentialRampToValueAtTime(peakVolume * 0.6, now + attack + 0.08)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + attack + 0.08 + duration + release)
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.masterGain)
+
+    const totalDuration = attack + 0.08 + duration + release + 0.1
+    osc.start(now)
+    osc.stop(now + totalDuration)
+
+    if (peakVolume > 0.05) {
+      const harmonicOsc = this.audioContext.createOscillator()
+      const harmonicGain = this.audioContext.createGain()
+      harmonicOsc.type = 'triangle'
+      harmonicOsc.frequency.setValueAtTime(frequency * 2, now)
+      harmonicOsc.detune.setValueAtTime(detune * 0.5, now)
+      harmonicGain.gain.setValueAtTime(0, now)
+      harmonicGain.gain.linearRampToValueAtTime(peakVolume * 0.15, now + attack * 1.2)
+      harmonicGain.gain.exponentialRampToValueAtTime(0.001, now + attack + duration + release * 0.7)
+      harmonicOsc.connect(harmonicGain)
+      harmonicGain.connect(this.masterGain)
+      harmonicOsc.start(now)
+      harmonicOsc.stop(now + attack + duration + release)
+    }
+  }
+
+  playBellChimeNotes(
+    notes: BellNote[],
+    layers: HarmonyLayerConfig[],
+    options: BellChimePlaybackOptions = {},
+  ): { stop: () => void } {
+    if (!this.ensureContext() || !this.audioContext) {
+      return { stop: () => {} }
+    }
+
+    const scheduledOscs: OscillatorNode[] = []
+    const ctxNow = this.audioContext.currentTime
+
+    notes.forEach((note) => {
+      const freq = BELL_NOTE_FREQUENCIES[note.pitch]
+      if (!freq) return
+
+      const layer = layers[note.layer]
+      const attack = layer?.attack ?? 0.02
+      const release = layer?.release ?? 1.5
+      const detune = layer?.detune ?? 0
+
+      const startTime = ctxNow + note.startTime
+      const osc = this.audioContext!.createOscillator()
+      const gain = this.audioContext!.createGain()
+      const filter = this.audioContext!.createBiquadFilter()
+
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(freq, startTime)
+      osc.detune.setValueAtTime(detune, startTime)
+
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(freq * 2.5, startTime)
+      filter.Q.setValueAtTime(0.8, startTime)
+
+      const peakVolume = Math.max(0.001, note.velocity * 0.4)
+      gain.gain.setValueAtTime(0, startTime)
+      gain.gain.linearRampToValueAtTime(peakVolume, startTime + attack)
+      gain.gain.exponentialRampToValueAtTime(peakVolume * 0.5, startTime + attack + 0.1)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + attack + 0.1 + note.duration + release)
+
+      osc.connect(filter)
+      filter.connect(gain)
+      gain.connect(this.masterGain!)
+
+      const totalDur = attack + 0.1 + note.duration + release + 0.1
+      osc.start(startTime)
+      osc.stop(startTime + totalDur)
+      scheduledOscs.push(osc)
+
+      if (peakVolume > 0.04 && note.layer === 0) {
+        const harmOsc = this.audioContext!.createOscillator()
+        const harmGain = this.audioContext!.createGain()
+        harmOsc.type = 'triangle'
+        harmOsc.frequency.setValueAtTime(freq * 2.01, startTime)
+        harmGain.gain.setValueAtTime(0, startTime)
+        harmGain.gain.linearRampToValueAtTime(peakVolume * 0.12, startTime + attack * 1.3)
+        harmGain.gain.exponentialRampToValueAtTime(0.001, startTime + attack + note.duration + release * 0.6)
+        harmOsc.connect(harmGain)
+        harmGain.connect(this.masterGain!)
+        harmOsc.start(startTime)
+        harmOsc.stop(startTime + attack + note.duration + release)
+        scheduledOscs.push(harmOsc)
+      }
+
+      if (options.onNoteStart) {
+        setTimeout(() => options.onNoteStart?.(note), note.startTime * 1000)
+      }
+    })
+
+    if (options.onComplete) {
+      const maxEnd = notes.length > 0 ? Math.max(...notes.map((n) => n.startTime + n.duration)) : 0
+      setTimeout(() => options.onComplete?.(), (maxEnd + 1) * 1000)
+    }
+
+    return {
+      stop: () => {
+        scheduledOscs.forEach((o) => {
+          try {
+            o.stop()
+            o.disconnect()
+          } catch {}
+        })
+      },
+    }
+  }
+
+  previewBellPreset(
+    preset: BellChimePreset,
+    options: BellChimePlaybackOptions = {},
+  ): { stop: () => void } {
+    const notes = bellChimeSystem.generateNotes(preset, options)
+    const layers = bellChimeSystem.getHarmonyLayers(preset.harmonyLayerIds)
+    return this.playBellChimeNotes(notes, layers, options)
+  }
+
+  triggerBellChime(triggerType: SoundEvent): { stop: () => void } | null {
+    const triggerMap: Record<string, string> = {
+      time_aligned: 'time_aligned',
+      level_success: 'level_success',
+      level_fail: 'level_fail',
+      period_transition: 'period_transition',
+      tower_align: 'tower_align',
+      fault_clear: 'gear_snap',
+      storm_end: 'storm_end',
+    }
+
+    const bellType = triggerMap[triggerType]
+    if (!bellType) return null
+
+    const trigger = bellChimeSystem.shouldTrigger(bellType as any)
+    if (!trigger) return null
+
+    bellChimeSystem.markTriggered(trigger.id)
+    const preset = bellChimeSystem.getCurrentPreset()
+    if (!preset) return null
+
+    let playOptions: BellChimePlaybackOptions = {}
+    if (triggerType === 'level_fail') {
+      playOptions = { volumeMultiplier: 0.6, playbackRate: 0.8 }
+    } else if (triggerType === 'level_success') {
+      playOptions = { volumeMultiplier: 1.1, playbackRate: 1.0 }
+    } else if (triggerType === 'storm_end') {
+      playOptions = { volumeMultiplier: 0.9, playbackRate: 0.9 }
+    }
+
+    return this.previewBellPreset(preset, playOptions)
+  }
+
+  playSingleBellPitch(pitch: string, duration: number = 1.0, volume: number = 0.6): void {
+    const freq = (BELL_NOTE_FREQUENCIES as any)[pitch]
+    if (!freq) return
+    this.playBellNote(freq, duration, volume)
+  }
+
   destroy(): void {
     this.stopRain()
     this.stopWind()
@@ -661,3 +858,5 @@ export class SoundManager {
     }
   }
 }
+
+export const soundManager = new SoundManager()
