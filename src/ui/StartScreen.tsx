@@ -7,9 +7,10 @@ interface StartScreenProps {
   onOpenBellChime: () => void
   onOpenEditor: () => void
   onImportLevel?: () => void
+  onOpenAdmin?: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -83,6 +84,11 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
         {onImportLevel && (
           <button className="editor-entry-btn" onClick={onImportLevel} style={{ backgroundColor: '#1a3a2a', borderColor: '#3d7a5a' }}>
             📂 导入关卡JSON
+          </button>
+        )}
+        {onOpenAdmin && (
+          <button className="editor-entry-btn" onClick={onOpenAdmin} style={{ backgroundColor: '#2a1a3a', borderColor: '#6a3d9a' }}>
+            ⚙️ 运维后台
           </button>
         )}
       </div>

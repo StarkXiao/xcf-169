@@ -8,13 +8,14 @@ import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
 import BellChimePanel from './ui/BellChimePanel'
 import LevelEditor from './ui/LevelEditor'
+import AdminPanel from './admin/AdminPanel'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig } from './types'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 
 type AnyGameResult = GameResult | MultiClockGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -64,6 +65,8 @@ function App() {
   const handleOpenEditor = useCallback(() => goTo('editor'), [goTo])
   const handleCloseEditor = useCallback(() => goTo('menu'), [goTo])
 
+  const handleOpenAdmin = useCallback(() => goTo('admin'), [goTo])
+
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
     if (loaded) {
@@ -107,7 +110,8 @@ function App() {
   const showWorkshop = view === 'workshop'
   const showBellChime = view === 'bellchime'
   const showEditor = view === 'editor'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor
+  const showAdmin = view === 'admin'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin
 
   return (
     <div className="app-container">
@@ -125,6 +129,7 @@ function App() {
           onOpenBellChime={handleOpenBellChime}
           onOpenEditor={handleOpenEditor}
           onImportLevel={() => fileInputRef.current?.click()}
+          onOpenAdmin={handleOpenAdmin}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -161,6 +166,7 @@ function App() {
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
       {showBellChime && <BellChimePanel onClose={handleCloseBellChime} />}
       {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} />}
+      {showAdmin && <AdminPanel />}
     </div>
   )
 }
