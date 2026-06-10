@@ -14,7 +14,7 @@ import type {
 import type { ClockTime } from '../../types'
 import { TowerMapSystem } from './TowerMapSystem'
 import { EventPoolSystem } from './EventPoolSystem'
-import { WeatherEventSystem } from './WeatherEventSystem'
+import { WeatherEventSystem, type WeatherPulseEvent } from './WeatherEventSystem'
 import { RewardTreeSystem } from './RewardTreeSystem'
 import { SettlementSystem, type EventResultData } from './SettlementSystem'
 import { generateRunId, generateSeed } from './SettlementSystem'
@@ -30,6 +30,9 @@ export interface RoguelikeCallbacks {
   onVictory?: (result: RoguelikeGameResult) => void
   onTrapTriggered?: (trap: TrapType, gearId: number) => void
   onWeatherTriggered?: (weather: WeatherEventType) => void
+  onWeatherPulse?: (event: WeatherPulseEvent) => void
+  onTargetShift?: (newTarget: ClockTime, shiftAmount: number) => void
+  onTimeJump?: (newTime: ClockTime, jumpAmount: number) => void
   onRewardUnlocked?: (reward: RewardNodeId) => void
 }
 
@@ -96,7 +99,9 @@ export class RoguelikeGameCoordinator {
     this.callbacks = callbacks
     this.mapSystem = new TowerMapSystem(seed, nightConfig)
     this.eventPoolSystem = new EventPoolSystem(seed, nightConfig)
-    this.weatherSystem = new WeatherEventSystem()
+    this.weatherSystem = new WeatherEventSystem({
+      onWeatherPulse: (pulse) => this.handleWeatherPulse(pulse),
+    })
     this.rewardTree = new RewardTreeSystem(nightConfig.rewardPointsPerNight)
     this.settlementSystem = new SettlementSystem()
 
@@ -324,12 +329,77 @@ export class RoguelikeGameCoordinator {
   updateEventTime(deltaMs: number): void {
     if (this.phase !== 'playing') return
     this.eventTimeLeft = Math.max(0, this.eventTimeLeft - deltaMs / 1000)
+
+    const pulses = this.weatherSystem.update(deltaMs)
+    if (pulses.length > 0) {
+      pulses.forEach((pulse) => this.callbacks.onWeatherPulse?.(pulse))
+      this.state.activeWeathers = this.weatherSystem.getActiveWeathers()
+      this.emitState()
+    }
+
     this.weatherSystem.expireWeathers()
     this.expireTraps()
 
     if (this.eventTimeLeft <= 0) {
       this.completeEvent(false)
     }
+  }
+
+  private handleWeatherPulse(pulse: WeatherPulseEvent): void {
+    if (this.phase !== 'playing') return
+
+    switch (pulse.type) {
+      case 'targetShift':
+        this.handleTargetShiftPulse(pulse)
+        break
+      case 'timeJump':
+        this.handleTimeJumpPulse(pulse)
+        break
+      case 'faultTrigger':
+        this.handleFaultTriggerPulse(pulse)
+        break
+    }
+  }
+
+  private handleTargetShiftPulse(pulse: WeatherPulseEvent): void {
+    if (this.rewardTree.shouldIgnoreWeather()) return
+
+    const effects = this.weatherSystem.getAggregatedEffects()
+    const shiftAmount = effects.targetShiftAmount || pulse.value
+    const newTarget = this.weatherSystem.generateTargetShift(this.targetTime, shiftAmount)
+    this.targetTime = newTarget
+    this.callbacks.onTargetShift?.(newTarget, shiftAmount)
+  }
+
+  private handleTimeJumpPulse(pulse: WeatherPulseEvent): void {
+    if (this.rewardTree.shouldIgnoreWeather()) return
+
+    const effects = this.weatherSystem.getAggregatedEffects()
+    const jumpAmount = effects.timeJumpAmount || pulse.value
+    const newTime = this.weatherSystem.generateTimeJump(this.currentTime, jumpAmount)
+    this.currentTime = newTime
+    this.callbacks.onTimeJump?.(newTime, jumpAmount)
+  }
+
+  private handleFaultTriggerPulse(_pulse: WeatherPulseEvent): void {
+    if (this.rewardTree.shouldResistFault()) return
+
+    const allTraps: TrapType[] = ['gearJam', 'timeSlip', 'reverseSpin', 'frostLock', 'springSnap', 'pendulumSwing', 'cogMisalign', 'bellEcho']
+    const randomTrap = allTraps[Math.floor(Math.random() * allTraps.length)]
+    const config = this.eventPoolSystem.getTrapConfig(randomTrap)
+    const now = performance.now()
+    const gearCount = 4
+    const randomGear = Math.floor(Math.random() * gearCount) + 1
+
+    const newTrap: ActiveTrap = {
+      trapId: randomTrap,
+      gearId: randomGear,
+      startAt: now,
+      expiresAt: now + (config?.duration || 10000),
+    }
+
+    this.state.activeTraps = [...this.state.activeTraps, newTrap]
+    this.callbacks.onTrapTriggered?.(randomTrap, randomGear)
   }
 
   private expireTraps(): void {
@@ -400,7 +470,8 @@ export class RoguelikeGameCoordinator {
     }
     damageTaken = this.rewardTree.applyDamageReduction(damageTaken)
 
-    const scoreGained = Math.max(0, scoreBreakdown.total - damageTaken * 5)
+    let scoreGained = Math.max(0, scoreBreakdown.total - damageTaken * 5)
+    scoreGained = this.weatherSystem.applyScorePenalty(scoreGained)
     this.state.score = scoreGained
     this.state.totalScore += scoreGained
 

@@ -23,6 +23,7 @@ import {
   WEATHER_EVENTS,
   getWeatherSeverityColor,
   getEffectDescription,
+  type WeatherPulseEvent,
 } from './WeatherEventSystem'
 import {
   REWARD_NODES,
@@ -76,6 +77,10 @@ function RoguelikeGame({ nightNumber = 1, totalNights = 7, onGameEnd, onExit }: 
   const [finalResult, setFinalResult] = useState<RoguelikeGameResult | null>(null)
   const [lastEventResult, setLastEventResult] = useState<any>(null)
 
+  const [weatherPulseAnim, setWeatherPulseAnim] = useState<WeatherPulseEvent | null>(null)
+  const [targetShiftAnim, setTargetShiftAnim] = useState(false)
+  const [timeJumpAnim, setTimeJumpAnim] = useState(false)
+
   const initCoordinator = useCallback(() => {
     const coordinator = new RoguelikeGameCoordinator(nightNumber, totalNights, {
       onPhaseChange: (p) => setPhase(p),
@@ -114,6 +119,20 @@ function RoguelikeGame({ nightNumber = 1, totalNights = 7, onGameEnd, onExit }: 
       onVictory: (result) => {
         setFinalResult(result)
         setShowResult(true)
+      },
+      onWeatherPulse: (pulse) => {
+        setWeatherPulseAnim(pulse)
+        setTimeout(() => setWeatherPulseAnim(null), 800)
+      },
+      onTargetShift: (newTarget, _shiftAmount) => {
+        setTargetTime({ ...newTarget })
+        setTargetShiftAnim(true)
+        setTimeout(() => setTargetShiftAnim(false), 600)
+      },
+      onTimeJump: (newTime, _jumpAmount) => {
+        setCurrentTime({ ...newTime })
+        setTimeJumpAnim(true)
+        setTimeout(() => setTimeJumpAnim(false), 500)
       },
     })
 
@@ -157,10 +176,6 @@ function RoguelikeGame({ nightNumber = 1, totalNights = 7, onGameEnd, onExit }: 
 
       coord.updateEventTime(delta)
       setEventTimeLeft(coord.getEventTimeLeft())
-
-      const effects = coord.getWeatherSystem().getAggregatedEffects()
-      if (effects.faultChanceBonus > 0 && Math.random() < effects.faultChanceBonus * 0.01) {
-      }
 
       if (coord.checkEventComplete()) {
         const result = coord.completeEvent(true)
@@ -495,6 +510,15 @@ function RoguelikeGame({ nightNumber = 1, totalNights = 7, onGameEnd, onExit }: 
 
     return (
       <div className="rl-playing-view">
+        {weatherPulseAnim && (
+          <div className={`rl-weather-flash ${weatherPulseAnim.type}`}>
+            <div className="rl-flash-content">
+              {weatherPulseAnim.type === 'targetShift' && '👻 目标飘移！'}
+              {weatherPulseAnim.type === 'timeJump' && '⚡ 惊雷轰鸣！'}
+              {weatherPulseAnim.type === 'faultTrigger' && '🌧️ 故障产生！'}
+            </div>
+          </div>
+        )}
         <div className="rl-playing-sidebar">
           {renderHealthBar()}
           <div className="rl-timer-section">
@@ -513,13 +537,15 @@ function RoguelikeGame({ nightNumber = 1, totalNights = 7, onGameEnd, onExit }: 
           </div>
 
           <div className="rl-clock-display">
-            <div className="rl-clock-target">
+            <div className={`rl-clock-target ${targetShiftAnim ? 'shifting' : ''}`}>
               <div className="rl-clock-label">🎯 目标时间</div>
               <div className="rl-clock-value target">{formatClockTime(targetTime)}</div>
+              {targetShiftAnim && <div className="rl-shift-indicator">👻 飘移中...</div>}
             </div>
-            <div className={`rl-clock-current ${isVeryClose ? 'perfect' : isClose ? 'close' : ''}`}>
+            <div className={`rl-clock-current ${isVeryClose ? 'perfect' : isClose ? 'close' : ''} ${timeJumpAnim ? 'jumping' : ''}`}>
               <div className="rl-clock-label">🕐 当前时间</div>
               <div className="rl-clock-value">{formatClockTime(currentTime)}</div>
+              {timeJumpAnim && <div className="rl-jump-indicator">⚡ 雷击！</div>}
             </div>
             <div className={`rl-diff-display ${isVeryClose ? 'perfect' : isClose ? 'close' : ''}`}>
               差值: ±{diff}分钟

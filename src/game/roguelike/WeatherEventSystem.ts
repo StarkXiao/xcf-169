@@ -4,8 +4,12 @@ import type {
   ActiveWeather,
   WeatherEventEffect,
 } from '../../types/roguelike'
+import type { ClockTime } from '../../types'
 
-export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent> = {
+export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent & {
+  pulseIntervalMs?: number
+  pulseChance?: number
+}> = {
   timewarp: {
     id: 'timewarp',
     name: '时空扭曲',
@@ -22,13 +26,15 @@ export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent> = {
     id: 'clockPhantom',
     name: '时钟幻影',
     displayName: '时钟幻影',
-    description: '过去的残像干扰着你的感知，目标时间不断偏移...',
+    description: '过去的残像干扰着你的感知，目标时间不断飘移...',
     icon: '👻',
     duration: 25,
-    effect: { type: 'targetShift', value: 30 },
+    effect: { type: 'targetShift', value: 25 },
     triggerChance: 0.25,
     durationMs: 25000,
     severity: 'high',
+    pulseIntervalMs: 4000,
+    pulseChance: 0.7,
   },
   cursedWind: {
     id: 'cursedWind',
@@ -46,13 +52,15 @@ export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent> = {
     id: 'ironRain',
     name: '铁屑之雨',
     displayName: '铁屑之雨',
-    description: '金属碎屑从天而降，齿轮极易发生故障。',
+    description: '金属碎屑从天而降，齿轮极易发生故障！',
     icon: '🌧️',
     duration: 22,
     effect: { type: 'faultChance', value: 0.45 },
     triggerChance: 0.35,
     durationMs: 22000,
     severity: 'medium',
+    pulseIntervalMs: 5000,
+    pulseChance: 0.35,
   },
   thunderRumble: {
     id: 'thunderRumble',
@@ -61,16 +69,18 @@ export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent> = {
     description: '雷声震耳欲聋，每一次轰鸣都会打乱齿轮的位置！',
     icon: '⚡',
     duration: 15,
-    effect: { type: 'timeChange', value: 15 },
+    effect: { type: 'timeChange', value: 20 },
     triggerChance: 0.28,
     durationMs: 15000,
     severity: 'high',
+    pulseIntervalMs: 3500,
+    pulseChance: 0.8,
   },
   mirrorShard: {
     id: 'mirrorShard',
     name: '镜像碎片',
     displayName: '镜像碎片',
-    description: '散落的时间碎片产生镜像效果，得分被削减。',
+    description: '散落的时间碎片产生镜像效果，得分被大幅削减！',
     icon: '🪞',
     duration: 20,
     effect: { type: 'scorePenalty', value: 0.5 },
@@ -82,20 +92,47 @@ export const WEATHER_EVENTS: Record<WeatherEventType, WeatherEvent> = {
     id: 'lostSecond',
     name: '遗失之秒',
     displayName: '遗失之秒',
-    description: '时间变得断断续续，你的反应被严重干扰。',
+    description: '时间变得断断续续，你的反应被严重干扰，故障频发！',
     icon: '⏳',
     duration: 18,
-    effect: { type: 'faultChance', value: 0.35 },
+    effect: { type: 'faultChance', value: 0.4 },
     triggerChance: 0.3,
     durationMs: 18000,
     severity: 'medium',
+    pulseIntervalMs: 4500,
+    pulseChance: 0.4,
   },
+}
+
+export interface WeatherPulseEvent {
+  weatherId: WeatherEventType
+  type: 'targetShift' | 'timeJump' | 'faultTrigger'
+  value: number
+  timestamp: number
+}
+
+export interface WeatherSystemCallbacks {
+  onWeatherPulse?: (event: WeatherPulseEvent) => void
+  onWeatherStart?: (weatherId: WeatherEventType) => void
+  onWeatherEnd?: (weatherId: WeatherEventType) => void
 }
 
 export class WeatherEventSystem {
   private activeWeathers: ActiveWeather[] = []
   private weatherHistory: WeatherEventType[] = []
   private totalEncountered = 0
+  private callbacks: WeatherSystemCallbacks = {}
+
+  private lastPulseTimestamps: Map<WeatherEventType, number> = new Map()
+  private totalPulses = 0
+
+  constructor(callbacks: WeatherSystemCallbacks = {}) {
+    this.callbacks = callbacks
+  }
+
+  setCallbacks(callbacks: WeatherSystemCallbacks): void {
+    this.callbacks = { ...this.callbacks, ...callbacks }
+  }
 
   getActiveWeathers(): ActiveWeather[] {
     return [...this.activeWeathers]
@@ -107,6 +144,10 @@ export class WeatherEventSystem {
 
   getTotalEncountered(): number {
     return this.totalEncountered
+  }
+
+  getTotalPulses(): number {
+    return this.totalPulses
   }
 
   isWeatherActive(weatherId: WeatherEventType): boolean {
@@ -137,6 +178,9 @@ export class WeatherEventSystem {
     this.activeWeathers.push(active)
     this.weatherHistory.push(weatherId)
     this.totalEncountered++
+    this.lastPulseTimestamps.set(weatherId, now)
+
+    this.callbacks.onWeatherStart?.(weatherId)
     return active
   }
 
@@ -144,13 +188,18 @@ export class WeatherEventSystem {
     const index = this.activeWeathers.findIndex((w) => w.weatherId === weatherId)
     if (index >= 0) {
       this.activeWeathers.splice(index, 1)
+      this.lastPulseTimestamps.delete(weatherId)
+      this.callbacks.onWeatherEnd?.(weatherId)
       return true
     }
     return false
   }
 
   clearAllWeathers(): void {
+    const cleared = this.activeWeathers.map((w) => w.weatherId)
     this.activeWeathers = []
+    this.lastPulseTimestamps.clear()
+    cleared.forEach((id) => this.callbacks.onWeatherEnd?.(id))
   }
 
   expireWeathers(): WeatherEventType[] {
@@ -159,11 +208,75 @@ export class WeatherEventSystem {
     this.activeWeathers = this.activeWeathers.filter((w) => {
       if (w.expiresAt <= now) {
         expired.push(w.weatherId)
+        this.lastPulseTimestamps.delete(w.weatherId)
+        this.callbacks.onWeatherEnd?.(w.weatherId)
         return false
       }
       return true
     })
     return expired
+  }
+
+  update(_deltaMs: number): WeatherPulseEvent[] {
+    if (this.activeWeathers.length === 0) return []
+
+    const now = performance.now()
+    const pulses: WeatherPulseEvent[] = []
+
+    this.activeWeathers.forEach((active) => {
+      const config = WEATHER_EVENTS[active.weatherId]
+      if (!config || !config.pulseIntervalMs) return
+
+      const lastPulse = this.lastPulseTimestamps.get(active.weatherId) || active.startAt
+      const elapsed = now - lastPulse
+
+      if (elapsed >= config.pulseIntervalMs) {
+        const chance = config.pulseChance ?? 0.5
+        if (Math.random() < chance) {
+          const pulseEvent = this.createPulseEvent(active.weatherId, config.effect, now)
+          if (pulseEvent) {
+            pulses.push(pulseEvent)
+            this.totalPulses++
+            this.callbacks.onWeatherPulse?.(pulseEvent)
+          }
+        }
+        this.lastPulseTimestamps.set(active.weatherId, now)
+      }
+    })
+
+    return pulses
+  }
+
+  private createPulseEvent(
+    weatherId: WeatherEventType,
+    effect: WeatherEventEffect,
+    now: number,
+  ): WeatherPulseEvent | null {
+    switch (effect.type) {
+      case 'targetShift':
+        return {
+          weatherId,
+          type: 'targetShift',
+          value: effect.value,
+          timestamp: now,
+        }
+      case 'timeChange':
+        return {
+          weatherId,
+          type: 'timeJump',
+          value: effect.value,
+          timestamp: now,
+        }
+      case 'faultChance':
+        return {
+          weatherId,
+          type: 'faultTrigger',
+          value: 1,
+          timestamp: now,
+        }
+      default:
+        return null
+    }
   }
 
   getAggregatedEffects(): {
@@ -242,6 +355,30 @@ export class WeatherEventSystem {
     return Math.random() < effects.reverseControlChance
   }
 
+  generateTargetShift(baseTarget: ClockTime, shiftAmount: number): ClockTime {
+    const direction = Math.random() > 0.5 ? 1 : -1
+    const shift = Math.floor(Math.random() * shiftAmount * 0.8 + shiftAmount * 0.2) * direction
+    const targetMin = baseTarget.hours * 60 + baseTarget.minutes
+    let newMin = (targetMin + shift + 720) % 720
+    if (newMin === 0) newMin = 720
+    return {
+      hours: Math.floor(newMin / 60) || 12,
+      minutes: newMin % 60,
+    }
+  }
+
+  generateTimeJump(baseTime: ClockTime, jumpAmount: number): ClockTime {
+    const direction = Math.random() > 0.5 ? 1 : -1
+    const jump = Math.floor(Math.random() * jumpAmount) * direction
+    const currentMin = baseTime.hours * 60 + baseTime.minutes
+    let newMin = (currentMin + jump + 720) % 720
+    if (newMin === 0) newMin = 720
+    return {
+      hours: Math.floor(newMin / 60) || 12,
+      minutes: newMin % 60,
+    }
+  }
+
   getWeatherRemainingMs(weatherId: WeatherEventType): number {
     const active = this.activeWeathers.find((w) => w.weatherId === weatherId)
     if (!active) return 0
@@ -263,9 +400,13 @@ export class WeatherEventSystem {
   }
 
   reset(): void {
+    const cleared = this.activeWeathers.map((w) => w.weatherId)
     this.activeWeathers = []
     this.weatherHistory = []
     this.totalEncountered = 0
+    this.totalPulses = 0
+    this.lastPulseTimestamps.clear()
+    cleared.forEach((id) => this.callbacks.onWeatherEnd?.(id))
   }
 }
 
@@ -306,11 +447,11 @@ export function getEffectDescription(effect: WeatherEventEffect): string {
     case 'scorePenalty':
       return `得分 -${Math.floor(effect.value * 100)}%`
     case 'timeChange':
-      return `齿轮偏移 ±${effect.value}分钟`
+      return `齿轮跳动 ±${effect.value}分钟`
     case 'faultChance':
       return `故障几率 +${Math.floor(effect.value * 100)}%`
     case 'targetShift':
-      return `目标偏移 ±${effect.value}分钟`
+      return `目标飘移 ±${effect.value}分钟`
     case 'reverseControls':
       return `${Math.floor(effect.value * 100)}%几率反转`
     default:
