@@ -17,16 +17,19 @@ import TrainingPanel from './ui/TrainingPanel'
 import TrainingReviewPanel from './ui/TrainingReviewPanel'
 import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
 import MuseumGameView from './ui/museum/MuseumGameView'
+import LevelSharePanel from './ui/LevelSharePanel'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
+import { levelShareSystem } from './game/LevelShareSystem'
 import './styles/roguelike.css'
 import './styles/museum.css'
+import './styles/level-share.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -37,6 +40,7 @@ function App() {
   const [trainingResult, setTrainingResult] = useState<TrainingGameResult | null>(null)
   const [roguelikeResult, setRoguelikeResult] = useState<RoguelikeGameResult | null>(null)
   const [duoCoopResult, setDuoCoopResult] = useState<DuoCoopGameResult | null>(null)
+  const [currentSharedLevelId, setCurrentSharedLevelId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const goTo = useCallback((v: AppView) => setView(v), [])
@@ -53,8 +57,15 @@ function App() {
     workshopSystem.recordGameScore(result.score)
     bellChimeSystem.recordScore(result.score)
     bellChimeSystem.resetTriggers()
+    
+    if (currentSharedLevelId && result.success && customLevel) {
+      const timeUsed = customLevel.duration - result.timeLeft
+      const deviation = 'totalDeviation' in result ? result.totalDeviation : 0
+      levelShareSystem.recordClear(currentSharedLevelId, result.score, Math.max(1, timeUsed), deviation)
+    }
+    
     goTo('result')
-  }, [goTo])
+  }, [goTo, currentSharedLevelId, customLevel])
 
   const handleRestart = useCallback(() => {
     setGameResult(null)
@@ -174,6 +185,26 @@ function App() {
     goTo('menu')
   }, [goTo])
 
+  const handleOpenLevelShare = useCallback(() => goTo('levelShare'), [goTo])
+  const handleCloseLevelShare = useCallback(() => goTo('menu'), [goTo])
+
+  const handlePlaySharedLevel = useCallback((levelData: EditorLevelConfig, sharedLevelId: string) => {
+    try {
+      const loaded = loadEditorLevel(levelData)
+      saveCustomLevelToStorage(loaded)
+      setCustomLevel(loaded)
+      setCurrentSharedLevelId(sharedLevelId)
+      setGameResult(null)
+      goTo('customGame')
+    } catch (err) {
+      console.error('加载分享关卡失败', err)
+    }
+  }, [goTo])
+
+  const handleCreateLevelFromShare = useCallback(() => {
+    goTo('editor')
+  }, [goTo])
+
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
     if (loaded) {
@@ -226,7 +257,8 @@ function App() {
   const showDuoCoop = view === 'duoCoop'
   const showDuoCoopResult = view === 'duoCoopResult'
   const showMuseum = view === 'museum'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum
+  const showLevelShare = view === 'levelShare'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare
 
   return (
     <div className="app-container">
@@ -249,6 +281,7 @@ function App() {
           onStartRoguelike={handleStartRoguelike}
           onStartDuoCoop={handleStartDuoCoop}
           onStartMuseum={handleStartMuseum}
+          onOpenLevelShare={handleOpenLevelShare}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -335,6 +368,13 @@ function App() {
       )}
       {showMuseum && (
         <MuseumGameView onExit={handleExitMuseum} />
+      )}
+      {showLevelShare && (
+        <LevelSharePanel
+          onClose={handleCloseLevelShare}
+          onPlayLevel={handlePlaySharedLevel}
+          onCreateLevel={handleCreateLevelFromShare}
+        />
       )}
     </div>
   )

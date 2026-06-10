@@ -12,9 +12,10 @@ interface StartScreenProps {
   onStartRoguelike: () => void
   onStartDuoCoop: () => void
   onStartMuseum: () => void
+  onOpenLevelShare: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -125,6 +126,9 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
       <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button className="editor-entry-btn" onClick={onOpenEditor}>
           ✏️ 关卡编辑器
+        </button>
+        <button className="editor-entry-btn" onClick={onOpenLevelShare} style={{ backgroundColor: '#1a2a3a', borderColor: '#5a7a9a' }}>
+          🏛️ 关卡广场
         </button>
         {onImportLevel && (
           <button className="editor-entry-btn" onClick={onImportLevel} style={{ backgroundColor: '#1a3a2a', borderColor: '#3d7a5a' }}>

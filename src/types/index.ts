@@ -668,3 +668,72 @@ export interface DuoCoopGameResult {
   cooperationBonus: number
   totalDeviation: number
 }
+
+// ==================== 关卡分享系统 ====================
+
+export interface PlayerProfile {
+  id: string
+  nickname: string
+  avatar: string
+  totalScore: number
+  levelsCreated: number
+  levelsCompleted: number
+  createdAt: number
+}
+
+export interface SharedLevel {
+  id: string
+  authorId: string
+  authorName: string
+  authorAvatar: string
+  levelData: EditorLevelConfig
+  title: string
+  description: string
+  difficulty: 'easy' | 'normal' | 'hard' | 'expert'
+  tags: string[]
+  likes: number
+  plays: number
+  completions: number
+  averageScore: number
+  bestScore: number
+  bestTime: number
+  createdAt: number
+  updatedAt: number
+  isFeatured?: boolean
+}
+
+export interface LevelClearRecord {
+  id: string
+  levelId: string
+  playerId: string
+  playerName: string
+  playerAvatar: string
+  score: number
+  timeUsed: number
+  deviation: number
+  stars: number
+  completedAt: number
+  isNewRecord?: boolean
+}
+
+export interface LevelComment {
+  id: string
+  levelId: string
+  playerId: string
+  playerName: string
+  playerAvatar: string
+  content: string
+  rating: number
+  createdAt: number
+  likes: number
+}
+
+export type LevelSortType = 'newest' | 'popular' | 'mostPlayed' | 'highestRated' | 'easiest' | 'hardest'
+
+export interface LevelShareFilters {
+  sortBy: LevelSortType
+  difficulty?: SharedLevel['difficulty']
+  searchQuery?: string
+  tags?: string[]
+  authorId?: string
+}
