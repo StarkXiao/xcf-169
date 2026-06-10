@@ -436,3 +436,130 @@ export interface BellChimeRuntimeStats {
   playCount: number
   totalNotesPlayed: number
 }
+
+export type LessonType = 'gear_basics' | 'gear_linkage' | 'time_conversion' | 'combined_practice' | 'fault_handling'
+
+export type LessonDifficulty = 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'
+
+export interface TrainingLesson {
+  id: string
+  type: LessonType
+  difficulty: LessonDifficulty
+  order: number
+  title: string
+  subtitle: string
+  description: string
+  unlockScore: number
+  targetScore: number
+  duration: number
+  steps: LessonStep[]
+  gears: TrainingGearConfig[]
+  initialClockTime: ClockTime
+  targetClockTime: ClockTime
+  toleranceMinutes: number
+  rewards: LessonRewards
+}
+
+export interface LessonStep {
+  id: string
+  order: number
+  type: 'demo' | 'instruction' | 'challenge' | 'quiz' | 'checkpoint'
+  title: string
+  content: string
+  hint?: string
+  expectedActions?: ExpectedAction[]
+  isComplete: boolean
+}
+
+export interface ExpectedAction {
+  gearId: number
+  direction: 1 | -1
+  times: number
+  description?: string
+}
+
+export interface TrainingGearConfig {
+  id: number
+  x: number
+  y: number
+  size: 'large' | 'medium' | 'small'
+  connectedTo: number[]
+  initialAngle: number
+  label?: string
+  description?: string
+  highlight?: boolean
+}
+
+export interface LessonRewards {
+  score: number
+  exp: number
+  badgeId?: string
+  unlocks?: string[]
+}
+
+export interface LessonProgress {
+  lessonId: string
+  bestScore: number
+  bestTime: number
+  stars: number
+  completedAt?: number
+  attempts: number
+}
+
+export interface TrainingProgress {
+  currentLessonId: string | null
+  completedLessons: LessonProgress[]
+  totalExp: number
+  totalScore: number
+  level: number
+  badges: string[]
+  unlockedLessons: string[]
+}
+
+export interface TrainingGameResult {
+  lessonId: string
+  success: boolean
+  score: number
+  timeLeft: number
+  stepsCompleted: number
+  totalSteps: number
+  stars: number
+  mistakes: number
+  hintsUsed: number
+  actionsRecord: TrainingActionRecord[]
+}
+
+export interface TrainingActionRecord {
+  timestamp: number
+  gearId: number
+  direction: 1 | -1
+  timeDelta: number
+  isCorrect: boolean
+}
+
+export interface TrainingBadge {
+  id: string
+  name: string
+  displayName: string
+  icon: string
+  description: string
+  condition: string
+  unlockScore: number
+}
+
+export interface TrainingLevel {
+  level: number
+  expRequired: number
+  title: string
+  perks: string[]
+}
+
+export interface TrainingReviewData {
+  lesson: TrainingLesson
+  result: TrainingGameResult
+  accuracyRate: number
+  timeEfficiency: number
+  strengths: string[]
+  weaknesses: string[]
+  suggestions: string[]
+}

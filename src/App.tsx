@@ -2,6 +2,8 @@ import { useState, useCallback, useRef } from 'react'
 import Game from './game/Game'
 import MultiClockGame from './game/MultiClockGame'
 import CustomGame from './game/CustomGame'
+import TrainingGame from './game/TrainingGame'
+import RoguelikeGame from './game/roguelike/RoguelikeGame'
 import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
@@ -9,19 +11,27 @@ import WorkshopPanel from './ui/WorkshopPanel'
 import BellChimePanel from './ui/BellChimePanel'
 import LevelEditor from './ui/LevelEditor'
 import AdminPanel from './admin/AdminPanel'
-import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig } from './types'
+import TrainingPanel from './ui/TrainingPanel'
+import TrainingReviewPanel from './ui/TrainingReviewPanel'
+import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
+import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult } from './types'
+import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
+import './styles/roguelike.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
   const [gameResult, setGameResult] = useState<AnyGameResult | null>(null)
   const [currentMode, setCurrentMode] = useState<GameMode>('classic')
   const [customLevel, setCustomLevel] = useState<LoadedLevel | null>(null)
+  const [currentTrainingLesson, setCurrentTrainingLesson] = useState<TrainingLesson | null>(null)
+  const [trainingResult, setTrainingResult] = useState<TrainingGameResult | null>(null)
+  const [roguelikeResult, setRoguelikeResult] = useState<RoguelikeGameResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const goTo = useCallback((v: AppView) => setView(v), [])
@@ -66,6 +76,67 @@ function App() {
   const handleCloseEditor = useCallback(() => goTo('menu'), [goTo])
 
   const handleOpenAdmin = useCallback(() => goTo('admin'), [goTo])
+  const handleCloseAdmin = useCallback(() => goTo('menu'), [goTo])
+
+  const handleOpenTraining = useCallback(() => goTo('training'), [goTo])
+  const handleCloseTraining = useCallback(() => goTo('menu'), [goTo])
+
+  const handleStartTrainingLesson = useCallback((lesson: TrainingLesson) => {
+    setCurrentTrainingLesson(lesson)
+    setTrainingResult(null)
+    goTo('trainingGame')
+  }, [goTo])
+
+  const handleTrainingGameEnd = useCallback((result: TrainingGameResult) => {
+    setTrainingResult(result)
+    goTo('trainingReview')
+  }, [goTo])
+
+  const handleExitTrainingGame = useCallback(() => {
+    setCurrentTrainingLesson(null)
+    setTrainingResult(null)
+    goTo('training')
+  }, [goTo])
+
+  const handleTrainingRestart = useCallback(() => {
+    if (currentTrainingLesson) {
+      setTrainingResult(null)
+      goTo('trainingGame')
+    }
+  }, [currentTrainingLesson, goTo])
+
+  const handleTrainingNextLesson = useCallback(() => {
+    goTo('training')
+  }, [goTo])
+
+  const handleBackToTraining = useCallback(() => {
+    setCurrentTrainingLesson(null)
+    setTrainingResult(null)
+    goTo('training')
+  }, [goTo])
+
+  const handleStartRoguelike = useCallback(() => {
+    setRoguelikeResult(null)
+    goTo('roguelike')
+  }, [goTo])
+
+  const handleRoguelikeEnd = useCallback((result: RoguelikeGameResult) => {
+    setRoguelikeResult(result)
+    workshopSystem.recordGameScore(result.totalScore)
+    bellChimeSystem.recordScore(result.totalScore)
+    bellChimeSystem.resetTriggers()
+    goTo('roguelikeResult')
+  }, [goTo])
+
+  const handleRoguelikeExit = useCallback(() => {
+    setRoguelikeResult(null)
+    goTo('menu')
+  }, [goTo])
+
+  const handleRoguelikeRestart = useCallback(() => {
+    setRoguelikeResult(null)
+    goTo('roguelike')
+  }, [goTo])
 
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
@@ -111,7 +182,12 @@ function App() {
   const showBellChime = view === 'bellchime'
   const showEditor = view === 'editor'
   const showAdmin = view === 'admin'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin
+  const showTraining = view === 'training'
+  const showTrainingGame = view === 'trainingGame'
+  const showTrainingReview = view === 'trainingReview'
+  const showRoguelike = view === 'roguelike'
+  const showRoguelikeResult = view === 'roguelikeResult'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult
 
   return (
     <div className="app-container">
@@ -130,6 +206,8 @@ function App() {
           onOpenEditor={handleOpenEditor}
           onImportLevel={() => fileInputRef.current?.click()}
           onOpenAdmin={handleOpenAdmin}
+          onOpenTraining={handleOpenTraining}
+          onStartRoguelike={handleStartRoguelike}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -166,7 +244,44 @@ function App() {
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
       {showBellChime && <BellChimePanel onClose={handleCloseBellChime} />}
       {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} />}
-      {showAdmin && <AdminPanel />}
+      {showAdmin && <AdminPanel onClose={handleCloseAdmin} />}
+      {showTraining && (
+        <TrainingPanel
+          onClose={handleCloseTraining}
+          onStartLesson={handleStartTrainingLesson}
+        />
+      )}
+      {showTrainingGame && currentTrainingLesson && (
+        <TrainingGame
+          lesson={currentTrainingLesson}
+          onGameEnd={handleTrainingGameEnd}
+          onExit={handleExitTrainingGame}
+        />
+      )}
+      {showTrainingReview && currentTrainingLesson && trainingResult && (
+        <TrainingReviewPanel
+          lesson={currentTrainingLesson}
+          result={trainingResult}
+          onRestart={handleTrainingRestart}
+          onBackToTraining={handleBackToTraining}
+          onNextLesson={handleTrainingNextLesson}
+        />
+      )}
+      {showRoguelike && (
+        <RoguelikeGame
+          nightNumber={1}
+          totalNights={7}
+          onGameEnd={handleRoguelikeEnd}
+          onExit={handleRoguelikeExit}
+        />
+      )}
+      {showRoguelikeResult && roguelikeResult && (
+        <RoguelikeResultPanel
+          result={roguelikeResult}
+          onRestart={handleRoguelikeRestart}
+          onBackToMenu={handleRoguelikeExit}
+        />
+      )}
     </div>
   )
 }

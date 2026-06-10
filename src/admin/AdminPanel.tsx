@@ -14,6 +14,10 @@ interface NavItem {
   icon: string
 }
 
+interface AdminPanelProps {
+  onClose?: () => void
+}
+
 const navItems: NavItem[] = [
   { id: 'dashboard', label: '仪表盘', icon: '📊' },
   { id: 'levels', label: '关卡配置', icon: '🎮' },
@@ -32,7 +36,7 @@ const pageTitles: Record<AdminPage, { title: string; desc: string }> = {
   versions: { title: '版本发布与回滚', desc: '管理配置版本，支持发布、归档和回滚' },
 }
 
-export default function AdminPanel() {
+export default function AdminPanel({ onClose }: AdminPanelProps) {
   const [currentPage, setCurrentPage] = useState<AdminPage>('dashboard')
 
   const renderPage = () => {
@@ -70,6 +74,21 @@ export default function AdminPanel() {
               <span>{item.label}</span>
             </div>
           ))}
+
+          {onClose && (
+            <div style={{ flex: 1 }} />
+          )}
+
+          {onClose && (
+            <div
+              className="admin-nav-item"
+              onClick={onClose}
+              style={{ marginTop: 8 }}
+            >
+              <span className="admin-nav-icon">🚪</span>
+              <span>返回主菜单</span>
+            </div>
+          )}
         </nav>
 
         <div className="admin-sidebar-footer">
@@ -79,7 +98,14 @@ export default function AdminPanel() {
 
       <div className="admin-main">
         <header className="admin-header">
-          <div className="admin-header-title">{pageInfo.title}</div>
+          <div className="admin-flex admin-items-center admin-gap-12">
+            {onClose && (
+              <button className="admin-btn admin-btn-ghost admin-btn-sm" onClick={onClose}>
+                ← 返回主菜单
+              </button>
+            )}
+            <div className="admin-header-title">{pageInfo.title}</div>
+          </div>
           <div className="admin-header-actions">
             <button className="admin-btn admin-btn-ghost admin-btn-sm">
               🔔 通知

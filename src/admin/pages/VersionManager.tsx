@@ -58,7 +58,9 @@ export default function VersionManager() {
     }
 
     const updatedVersions = versions.map((old) =>
-      old.status === 'published' ? { ...old, status: 'archived' as VersionStatus, archivedAt: Date.now() } : old
+      old.status === 'published' || old.status === 'rolled_back'
+        ? { ...old, status: 'archived' as VersionStatus, archivedAt: Date.now() }
+        : old
     )
 
     setVersions([v, ...updatedVersions])
@@ -88,14 +90,16 @@ export default function VersionManager() {
     }
 
     const updatedVersions = versions.map((old) =>
-      old.status === 'published' ? { ...old, status: 'archived' as VersionStatus, archivedAt: Date.now() } : old
+      old.status === 'published' || old.status === 'rolled_back'
+        ? { ...old, status: 'archived' as VersionStatus, archivedAt: Date.now() }
+        : old
     )
 
     setVersions([rollbackVersion, ...updatedVersions])
     setShowRollbackConfirm(false)
     setRollbackTarget(null)
     setSelected(rollbackVersion)
-    alert('版本回滚成功！原发布版本已归档。')
+    alert('版本回滚成功！回滚版本已生效，原发布版本已归档。')
   }
 
   const handleArchive = (v: ConfigVersion) => {
@@ -147,7 +151,7 @@ export default function VersionManager() {
               {sortedVersions.map((v) => (
                 <div
                   key={v.id}
-                  className={`admin-version-timeline-item ${v.status === 'published' ? 'active' : ''}`}
+                  className={`admin-version-timeline-item ${v.status === 'published' || v.status === 'rolled_back' ? 'active' : ''}`}
                   style={{
                     cursor: 'pointer',
                     padding: 12,
@@ -193,16 +197,27 @@ export default function VersionManager() {
                     <span className={`admin-badge admin-badge-${selected.status}`}>
                       {statusMap[selected.status]}
                     </span>
+                    {(selected.status === 'published' || selected.status === 'rolled_back') && (
+                      <span className="admin-badge admin-badge-published" style={{ marginLeft: 6 }}>
+                        ✅ 当前生效
+                      </span>
+                    )}
                     {' · '}由 {selected.author} 创建于 {formatDate(selected.createdAt)}
                   </div>
                 </div>
                 <div className="admin-action-bar">
                   {selected.status === 'draft' && (
                     <button className="admin-btn admin-btn-sm admin-btn-success" onClick={() => {
-                      setVersions(versions.map((v) =>
-                        v.id === selected.id ? { ...v, status: 'published' as VersionStatus, publishedAt: Date.now() } : v
-                      ))
+                      const updated = versions.map((v) =>
+                        v.id === selected.id
+                          ? { ...v, status: 'published' as VersionStatus, publishedAt: Date.now() }
+                          : (v.status === 'published' || v.status === 'rolled_back')
+                          ? { ...v, status: 'archived' as VersionStatus, archivedAt: Date.now() }
+                          : v
+                      )
+                      setVersions(updated)
                       setSelected({ ...selected, status: 'published', publishedAt: Date.now() })
+                      alert('发布成功！原已发布版本已自动归档。')
                     }}>
                       发布此版本
                     </button>
@@ -212,7 +227,12 @@ export default function VersionManager() {
                       归档
                     </button>
                   )}
-                  {(selected.status === 'archived' || selected.status === 'published') && (
+                  {selected.status === 'rolled_back' && (
+                    <button className="admin-btn admin-btn-sm admin-btn-warning" onClick={() => handleArchive(selected)}>
+                      归档
+                    </button>
+                  )}
+                  {(selected.status === 'archived' || selected.status === 'published' || selected.status === 'rolled_back') && (
                     <button className="admin-btn admin-btn-sm admin-btn-danger" onClick={() => {
                       setRollbackTarget(selected)
                       setShowRollbackConfirm(true)

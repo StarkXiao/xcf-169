@@ -8,9 +8,11 @@ interface StartScreenProps {
   onOpenEditor: () => void
   onImportLevel?: () => void
   onOpenAdmin?: () => void
+  onOpenTraining: () => void
+  onStartRoguelike: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -57,6 +59,13 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
         </span>
       </p>
       <div className="mode-selection">
+        <button className="start-btn mode-btn training-btn" onClick={onOpenTraining}>
+          <div className="mode-title">🎓 守钟人训练营</div>
+          <div className="mode-desc">
+            分步教学 · 齿轮联动<br />
+            时间换算 · 课程关卡 · 成长解锁
+          </div>
+        </button>
         <button className="start-btn mode-btn" onClick={() => onStart('classic')}>
           <div className="mode-title">经典校时</div>
           <div className="mode-desc">单次校准 · 120秒</div>
@@ -73,6 +82,17 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
           <div className="mode-desc">
             主钟+侧塔联动校准<br />
             指针偏差 · 机关联动 · 限时目标
+          </div>
+        </button>
+        <button className="start-btn mode-btn roguelike-btn" onClick={onStartRoguelike} style={{
+          background: 'linear-gradient(180deg, #3d2250 0%, #2a1840 100%)',
+          borderColor: '#8b55aa',
+          color: '#e0c0f8',
+        }}>
+          <div className="mode-title">🗡️ 钟楼巡检·肉鸽</div>
+          <div className="mode-desc">
+            随机地图 · 机关组合<br />
+            天气事件 · 奖励树 · 爬塔结算
           </div>
         </button>
       </div>
