@@ -563,3 +563,89 @@ export interface TrainingReviewData {
   weaknesses: string[]
   suggestions: string[]
 }
+
+export type DuoCoopInterferenceType = 'drift' | 'rebound' | 'fog' | 'magnet' | 'stutter'
+
+export interface DuoCoopInterferenceEvent {
+  id: string
+  type: DuoCoopInterferenceType
+  name: string
+  displayName: string
+  description: string
+  icon: string
+  targetPlayer: 'master' | 'slave' | 'both'
+  durationMs: number
+  triggerChance: number
+  severity: 'low' | 'medium' | 'high'
+}
+
+export interface DuoCoopSyncTarget {
+  id: string
+  targetTime: ClockTime
+  toleranceMinutes: number
+  label: string
+  bonusScore: number
+  isAchieved: boolean
+}
+
+export interface DuoCoopPlayerState {
+  role: 'master' | 'slave'
+  currentTime: ClockTime
+  targetTime: ClockTime
+  deviationMinutes: number
+  isAligned: boolean
+  driftAccumulator: number
+  reboundCooldown: number
+  fogActive: boolean
+  magnetPullDir: 0 | 1 | -1
+  stutterActive: boolean
+  lastOperationTime: number
+  operationCount: number
+}
+
+export interface DuoCoopLevelConfig {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  duration: number
+  masterTarget: ClockTime
+  slaveTarget: ClockTime
+  toleranceMinutes: number
+  scoreMultiplier: number
+  interferences: DuoCoopInterferenceEvent[]
+  syncTargets: DuoCoopSyncTarget[]
+  sharedTimeDrift: number
+  interferenceIntervalMs: number
+}
+
+export interface DuoCoopState {
+  levelConfig: DuoCoopLevelConfig
+  master: DuoCoopPlayerState
+  slave: DuoCoopPlayerState
+  activeInterferences: (DuoCoopInterferenceEvent & { expiresAt: number })[]
+  syncTargets: DuoCoopSyncTarget[]
+  syncScore: number
+  isCompleted: boolean
+  isLocked: boolean
+  allSynced: boolean
+  totalDeviation: number
+  lastInterferenceTime: number
+  sharedDrift: number
+}
+
+export type DuoCoopGameStatus = 'idle' | 'playing' | 'success' | 'failed'
+
+export interface DuoCoopGameResult {
+  success: boolean
+  score: number
+  timeLeft: number
+  levelId: string
+  masterDeviation: number
+  slaveDeviation: number
+  syncTargetsAchieved: number
+  syncTargetsTotal: number
+  interferencesHandled: number
+  cooperationBonus: number
+  totalDeviation: number
+}

@@ -1,12 +1,14 @@
 import { useState, useCallback, useRef } from 'react'
 import Game from './game/Game'
 import MultiClockGame from './game/MultiClockGame'
+import DuoCoopGame from './game/DuoCoopGame'
 import CustomGame from './game/CustomGame'
 import TrainingGame from './game/TrainingGame'
 import RoguelikeGame from './game/roguelike/RoguelikeGame'
 import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
+import DuoCoopGameOverPanel from './ui/DuoCoopGameOverPanel'
 import WorkshopPanel from './ui/WorkshopPanel'
 import BellChimePanel from './ui/BellChimePanel'
 import LevelEditor from './ui/LevelEditor'
@@ -14,15 +16,15 @@ import AdminPanel from './admin/AdminPanel'
 import TrainingPanel from './ui/TrainingPanel'
 import TrainingReviewPanel from './ui/TrainingReviewPanel'
 import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
-import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult } from './types'
+import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 import './styles/roguelike.css'
 
-type AnyGameResult = GameResult | MultiClockGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult'
+type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -32,6 +34,7 @@ function App() {
   const [currentTrainingLesson, setCurrentTrainingLesson] = useState<TrainingLesson | null>(null)
   const [trainingResult, setTrainingResult] = useState<TrainingGameResult | null>(null)
   const [roguelikeResult, setRoguelikeResult] = useState<RoguelikeGameResult | null>(null)
+  const [duoCoopResult, setDuoCoopResult] = useState<DuoCoopGameResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const goTo = useCallback((v: AppView) => setView(v), [])
@@ -138,6 +141,29 @@ function App() {
     goTo('roguelike')
   }, [goTo])
 
+  const handleStartDuoCoop = useCallback(() => {
+    setDuoCoopResult(null)
+    goTo('duoCoop')
+  }, [goTo])
+
+  const handleDuoCoopEnd = useCallback((result: DuoCoopGameResult) => {
+    setDuoCoopResult(result)
+    workshopSystem.recordGameScore(result.score)
+    bellChimeSystem.recordScore(result.score)
+    bellChimeSystem.resetTriggers()
+    goTo('duoCoopResult')
+  }, [goTo])
+
+  const handleDuoCoopExit = useCallback(() => {
+    setDuoCoopResult(null)
+    goTo('menu')
+  }, [goTo])
+
+  const handleDuoCoopRestart = useCallback(() => {
+    setDuoCoopResult(null)
+    goTo('duoCoop')
+  }, [goTo])
+
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
     if (loaded) {
@@ -187,7 +213,9 @@ function App() {
   const showTrainingReview = view === 'trainingReview'
   const showRoguelike = view === 'roguelike'
   const showRoguelikeResult = view === 'roguelikeResult'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult
+  const showDuoCoop = view === 'duoCoop'
+  const showDuoCoopResult = view === 'duoCoopResult'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult
 
   return (
     <div className="app-container">
@@ -208,6 +236,7 @@ function App() {
           onOpenAdmin={handleOpenAdmin}
           onOpenTraining={handleOpenTraining}
           onStartRoguelike={handleStartRoguelike}
+          onStartDuoCoop={handleStartDuoCoop}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -280,6 +309,16 @@ function App() {
           result={roguelikeResult}
           onRestart={handleRoguelikeRestart}
           onBackToMenu={handleRoguelikeExit}
+        />
+      )}
+      {showDuoCoop && (
+        <DuoCoopGame onGameEnd={handleDuoCoopEnd} />
+      )}
+      {showDuoCoopResult && duoCoopResult && (
+        <DuoCoopGameOverPanel
+          result={duoCoopResult}
+          onRestart={handleDuoCoopRestart}
+          onBackToMenu={handleDuoCoopExit}
         />
       )}
     </div>

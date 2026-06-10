@@ -10,9 +10,10 @@ interface StartScreenProps {
   onOpenAdmin?: () => void
   onOpenTraining: () => void
   onStartRoguelike: () => void
+  onStartDuoCoop: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -93,6 +94,17 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
           <div className="mode-desc">
             随机地图 · 机关组合<br />
             天气事件 · 奖励树 · 爬塔结算
+          </div>
+        </button>
+        <button className="start-btn mode-btn duocoop-btn" onClick={onStartDuoCoop} style={{
+          background: 'linear-gradient(180deg, #1a3d3d 0%, #0f2a2a 100%)',
+          borderColor: '#5a8a8a',
+          color: '#8abbbb',
+        }}>
+          <div className="mode-title">👥 双人协作校时</div>
+          <div className="mode-desc">
+            主钟+副钟双操控<br />
+            共享漂移 · 干扰事件 · 同步目标
           </div>
         </button>
       </div>

@@ -4408,3 +4408,344 @@ html, body, #root {
     width: 100%;
   }
 }
+
+/* ============================================================
+   双人协作校时 - Duo Coop Styles
+   ============================================================ */
+
+.duo-hud-top {
+  flex-wrap: wrap;
+}
+
+.duo-status-panel {
+  flex: 1;
+  background: rgba(10, 10, 18, 0.85);
+  border: 2px solid #5a4a32;
+  border-radius: 8px;
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.duo-player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+}
+
+.duo-role-tag {
+  padding: 0.15rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  min-width: 40px;
+  text-align: center;
+}
+
+.master-tag {
+  background: rgba(201, 169, 106, 0.2);
+  border: 1px solid #c9a96a;
+  color: #c9a96a;
+}
+
+.slave-tag {
+  background: rgba(138, 187, 187, 0.2);
+  border: 1px solid #8abbbb;
+  color: #8abbbb;
+}
+
+.duo-align-badge {
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.duo-align-badge.aligned {
+  background: rgba(126, 201, 126, 0.15);
+  border: 1px solid rgba(126, 201, 126, 0.3);
+  color: #7ec97e;
+}
+
+.duo-align-badge.off {
+  background: rgba(255, 136, 136, 0.1);
+  border: 1px solid rgba(255, 136, 136, 0.3);
+  color: #ff8888;
+}
+
+.duo-sync-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 0.85rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid #3d3222;
+}
+
+.sync-label {
+  color: #8b7d5c;
+  font-size: 0.8rem;
+}
+
+.sync-progress {
+  color: #e8d5a3;
+  font-weight: bold;
+}
+
+.sync-score {
+  margin-left: auto;
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+.slave-adjust {
+  background: linear-gradient(180deg, #2a3d3d 0%, #1a2a2a 100%) !important;
+  border-color: #5a8a8a !important;
+  color: #8abbbb !important;
+}
+
+.slave-adjust:hover {
+  border-color: #8abbbb !important;
+  background: linear-gradient(180deg, #3a4d4d 0%, #2a3a3a 100%) !important;
+}
+
+.slave-adjust.active {
+  background: linear-gradient(180deg, #1a2a3d 0%, #1a2030 100%) !important;
+  border-color: #8abbbb !important;
+  color: #aacccc !important;
+}
+
+.duo-interference-panel {
+  position: absolute;
+  top: 5.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 10, 18, 0.9);
+  border: 2px solid #5a4a32;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  max-width: 350px;
+  z-index: 20;
+  pointer-events: auto;
+}
+
+.interference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.interference-card {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  background: rgba(20, 20, 30, 0.6);
+  border-radius: 5px;
+  font-size: 0.8rem;
+}
+
+.interference-card.severity-low {
+  border-left: 3px solid #8acc8a;
+}
+
+.interference-card.severity-medium {
+  border-left: 3px solid #e8c87a;
+}
+
+.interference-card.severity-high {
+  border-left: 3px solid #ff8888;
+}
+
+.inf-icon {
+  font-size: 1rem;
+}
+
+.inf-name {
+  flex: 1;
+  color: #e8d5a3;
+  font-weight: bold;
+}
+
+.inf-target {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+}
+
+.inf-target.master {
+  background: rgba(201, 169, 106, 0.2);
+  color: #c9a96a;
+}
+
+.inf-target.slave {
+  background: rgba(138, 187, 187, 0.2);
+  color: #8abbbb;
+}
+
+.inf-target.both {
+  background: rgba(170, 136, 255, 0.2);
+  color: #aa88ff;
+}
+
+.duo-sync-panel {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  background: rgba(10, 10, 18, 0.9);
+  border: 2px solid #5a4a32;
+  border-radius: 8px;
+  padding: 0.8rem;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sync-targets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sync-target-card {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(20, 20, 30, 0.6);
+  border: 1px solid #3d3222;
+  border-radius: 5px;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.sync-target-card.achieved {
+  border-color: #5a8a5a;
+  background: rgba(20, 30, 20, 0.6);
+}
+
+.sync-target-icon {
+  font-size: 0.9rem;
+  color: #8b7d5c;
+  min-width: 16px;
+  text-align: center;
+}
+
+.sync-target-card.achieved .sync-target-icon {
+  color: #7ec97e;
+}
+
+.sync-target-label {
+  flex: 1;
+  color: #e8d5a3;
+  font-weight: bold;
+}
+
+.sync-target-time {
+  color: #8b7d5c;
+  font-size: 0.75rem;
+}
+
+.sync-target-bonus {
+  color: #ffd700;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.sync-target-card.achieved .sync-target-bonus {
+  color: #7ec97e;
+}
+
+.duo-hint {
+  max-width: 85%;
+}
+
+.duo-hint-box {
+  max-width: 500px;
+  margin-bottom: 1.5rem;
+}
+
+.duocoop-btn {
+  background: linear-gradient(180deg, #2a3d3d 0%, #1a2a2a 100%);
+  border-color: #5a8a8a;
+}
+
+.duocoop-btn:hover {
+  background: linear-gradient(180deg, #3a4d4d 0%, #2a3a3a 100%);
+  border-color: #8abbbb;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 0 20px rgba(138, 187, 187, 0.2);
+}
+
+@media (max-width: 768px) {
+  .duo-status-panel {
+    max-width: none;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .duo-player-row {
+    font-size: 0.75rem;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .duo-sync-row {
+    font-size: 0.75rem;
+  }
+
+  .duo-interference-panel {
+    top: auto;
+    bottom: 5rem;
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    max-width: none;
+  }
+
+  .interference-card {
+    font-size: 0.7rem;
+  }
+
+  .duo-sync-panel {
+    position: absolute;
+    top: auto;
+    left: 1rem;
+    right: 1rem;
+    bottom: 5rem;
+    transform: none;
+    max-width: none;
+    max-height: 35vh;
+    overflow-y: auto;
+  }
+
+  .sync-target-card {
+    font-size: 0.7rem;
+    padding: 0.3rem 0.4rem;
+  }
+
+  .hud-controls {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .fine-adjust-btn {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.7rem;
+  }
+
+  .sound-toggle {
+    position: static;
+    transform: none;
+  }
+}
