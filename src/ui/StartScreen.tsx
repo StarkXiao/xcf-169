@@ -11,9 +11,10 @@ interface StartScreenProps {
   onOpenTraining: () => void
   onStartRoguelike: () => void
   onStartDuoCoop: () => void
+  onStartMuseum: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -60,6 +61,18 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
         </span>
       </p>
       <div className="mode-selection">
+        <button className="start-btn mode-btn museum-btn" onClick={onStartMuseum} style={{
+          background: 'linear-gradient(180deg, #3d2817 0%, #2a1c0f 100%)',
+          borderColor: '#c9a96a',
+          color: '#f0dca8',
+          boxShadow: '0 0 20px rgba(201, 169, 106, 0.3)',
+        }}>
+          <div className="mode-title">🏛️ 钟楼博物馆·叙事</div>
+          <div className="mode-desc">
+            5章剧情 · 角色对话 · 分支选择<br />
+            机关解谜 · 探索收集 · 6种结局
+          </div>
+        </button>
         <button className="start-btn mode-btn training-btn" onClick={onOpenTraining}>
           <div className="mode-title">🎓 守钟人训练营</div>
           <div className="mode-desc">

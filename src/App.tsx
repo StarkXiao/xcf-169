@@ -16,15 +16,17 @@ import AdminPanel from './admin/AdminPanel'
 import TrainingPanel from './ui/TrainingPanel'
 import TrainingReviewPanel from './ui/TrainingReviewPanel'
 import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
+import MuseumGameView from './ui/museum/MuseumGameView'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 import './styles/roguelike.css'
+import './styles/museum.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -164,6 +166,14 @@ function App() {
     goTo('duoCoop')
   }, [goTo])
 
+  const handleStartMuseum = useCallback(() => {
+    goTo('museum')
+  }, [goTo])
+
+  const handleExitMuseum = useCallback(() => {
+    goTo('menu')
+  }, [goTo])
+
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
     if (loaded) {
@@ -215,7 +225,8 @@ function App() {
   const showRoguelikeResult = view === 'roguelikeResult'
   const showDuoCoop = view === 'duoCoop'
   const showDuoCoopResult = view === 'duoCoopResult'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult
+  const showMuseum = view === 'museum'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum
 
   return (
     <div className="app-container">
@@ -237,6 +248,7 @@ function App() {
           onOpenTraining={handleOpenTraining}
           onStartRoguelike={handleStartRoguelike}
           onStartDuoCoop={handleStartDuoCoop}
+          onStartMuseum={handleStartMuseum}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -320,6 +332,9 @@ function App() {
           onRestart={handleDuoCoopRestart}
           onBackToMenu={handleDuoCoopExit}
         />
+      )}
+      {showMuseum && (
+        <MuseumGameView onExit={handleExitMuseum} />
       )}
     </div>
   )

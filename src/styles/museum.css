@@ -1,0 +1,1551 @@
+/* =========================================================
+   钟楼博物馆·叙事模式 - 主题样式
+   Clock Tower Museum Narrative Theme
+   ========================================================= */
+
+.museum-game-container {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  color: #e8dcc0;
+  user-select: none;
+}
+
+/* ---------- 背景层 ---------- */
+.museum-background {
+  position: absolute;
+  inset: 0;
+  transition: background 1.2s ease;
+  overflow: hidden;
+}
+
+.bg-decor-element {
+  animation: float 8s ease-in-out infinite;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.bg-decor-element:nth-child(odd) {
+  animation-delay: -4s;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(5deg); }
+}
+
+.museum-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  bottom: -10px;
+  width: 4px;
+  height: 4px;
+  background: radial-gradient(circle, #ffd700 0%, transparent 70%);
+  border-radius: 50%;
+  animation: rise linear infinite;
+  opacity: 0;
+}
+
+@keyframes rise {
+  0% { opacity: 0; transform: translateY(0) translateX(0); }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.4; }
+  100% { opacity: 0; transform: translateY(-110vh) translateX(50px); }
+}
+
+/* ---------- 顶部 HUD ---------- */
+.museum-top-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.6) 0%, transparent 100%);
+  backdrop-filter: blur(8px);
+}
+
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.hud-chapter {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f0dca8;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.hud-progress {
+  font-size: 0.85em;
+  color: #c9a96a;
+  opacity: 0.8;
+}
+
+.hud-time {
+  font-size: 0.95rem;
+  color: #c9a96a;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-btn {
+  background: rgba(30, 25, 18, 0.7);
+  border: 1px solid #c9a96a;
+  color: #f0dca8;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.hud-btn:hover {
+  background: rgba(201, 169, 106, 0.25);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 169, 106, 0.2);
+}
+
+/* ---------- 角色舞台 ---------- */
+.museum-character-stage {
+  position: absolute;
+  top: 10%;
+  left: 0;
+  right: 0;
+  bottom: 40%;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.character-sprite {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  animation: characterIn 0.8s ease;
+}
+
+@keyframes characterIn {
+  from { opacity: 0; transform: translateY(-30%) scale(0.8); }
+  to { opacity: 1; transform: translateY(-50%) scale(1); }
+}
+
+.character-portrait-large {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 4px solid;
+  background: rgba(20, 18, 15, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(201, 169, 106, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.character-emoji {
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+/* ---------- 结局画面 ---------- */
+.museum-ending-screen {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  background: #0a0a0a;
+  padding: 2rem;
+  animation: fadeIn 1.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ending-cover {
+  width: 100%;
+  max-width: 800px;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  text-align: center;
+  margin-bottom: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.ending-type-badge {
+  display: inline-block;
+  padding: 0.4rem 1.2rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 20px;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  backdrop-filter: blur(4px);
+}
+
+.ending-title {
+  font-size: 2.5rem;
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.ending-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.ending-epilogue {
+  width: 100%;
+  max-width: 700px;
+  margin-bottom: 2rem;
+}
+
+.epilogue-text {
+  font-size: 1.05rem;
+  line-height: 2;
+  margin: 1rem 0;
+  text-indent: 2em;
+  color: #d0c8b0;
+  animation: slideIn 0.8s ease backwards;
+}
+
+.epilogue-text:nth-child(1) { animation-delay: 0.3s; }
+.epilogue-text:nth-child(2) { animation-delay: 0.6s; }
+.epilogue-text:nth-child(3) { animation-delay: 0.9s; }
+.epilogue-text:nth-child(4) { animation-delay: 1.2s; }
+.epilogue-text:nth-child(5) { animation-delay: 1.5s; }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ending-stats {
+  width: 100%;
+  max-width: 500px;
+  background: rgba(30, 25, 18, 0.8);
+  border: 1px solid #c9a96a;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(201, 169, 106, 0.2);
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+  font-weight: 700;
+  color: #ffd700;
+}
+
+.ending-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ending-btn {
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  border: 1px solid #c9a96a;
+  background: rgba(30, 25, 18, 0.8);
+  color: #f0dca8;
+  font-size: 1rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+.ending-btn:hover {
+  background: rgba(201, 169, 106, 0.25);
+  transform: translateY(-2px);
+}
+
+.ending-btn-primary {
+  background: linear-gradient(135deg, #c9a96a 0%, #a8884a 100%);
+  color: #1a1510;
+  font-weight: 600;
+}
+
+.ending-btn-primary:hover {
+  background: linear-gradient(135deg, #d9b97a 0%, #b8985a 100%);
+}
+
+/* ---------- 谜题舞台 ---------- */
+.museum-puzzle-stage {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.museum-puzzle-panel {
+  width: 100%;
+  max-width: 900px;
+  background: rgba(20, 18, 15, 0.92);
+  border: 2px solid #c9a96a;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(201, 169, 106, 0.1);
+  animation: puzzleIn 0.5s ease;
+}
+
+@keyframes puzzleIn {
+  from { opacity: 0; transform: scale(0.95) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.puzzle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(201, 169, 106, 0.3);
+  flex-wrap: wrap;
+}
+
+.puzzle-stats {
+  display: flex;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+}
+
+.stat-item {
+  color: #c9a96a;
+}
+
+.puzzle-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.puzzle-hint-btn, .puzzle-submit-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.puzzle-hint-btn {
+  background: rgba(88, 214, 141, 0.1);
+  border-color: #58d68d;
+  color: #58d68d;
+}
+
+.puzzle-hint-btn:hover {
+  background: rgba(88, 214, 141, 0.25);
+}
+
+.puzzle-submit-btn {
+  background: linear-gradient(135deg, #c9a96a 0%, #a8884a 100%);
+  border-color: #c9a96a;
+  color: #1a1510;
+  font-weight: 600;
+}
+
+.puzzle-submit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(201, 169, 106, 0.4);
+}
+
+.puzzle-hint-box {
+  background: rgba(88, 214, 141, 0.1);
+  border: 1px solid #58d68d;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  color: #58d68d;
+  animation: hintPulse 2s ease infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(88, 214, 141, 0); }
+  50% { box-shadow: 0 0 12px rgba(88, 214, 141, 0.3); }
+}
+
+.puzzle-result-box {
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  text-align: center;
+  animation: resultPop 0.3s ease;
+}
+
+@keyframes resultPop {
+  0% { transform: scale(0.9); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.puzzle-result-box.success {
+  background: rgba(88, 214, 141, 0.15);
+  border: 1px solid #58d68d;
+  color: #58d68d;
+}
+
+.puzzle-result-box.fail {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+}
+
+.puzzle-content {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+}
+
+/* 时钟校准谜题 */
+.puzzle-clock-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.puzzle-info h3 {
+  margin: 0 0 0.5rem;
+  color: #f0dca8;
+  font-size: 1.3rem;
+}
+
+.puzzle-desc {
+  color: #a09070;
+  margin: 0 0 0.5rem;
+  line-height: 1.6;
+}
+
+.puzzle-target {
+  margin: 0;
+  font-weight: 600;
+}
+
+.puzzle-clock-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.puzzle-clock {
+  width: 280px;
+  height: 280px;
+  filter: drop-shadow(0 0 20px rgba(201, 169, 106, 0.2));
+}
+
+.puzzle-time-display {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #c9a96a;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+}
+
+.puzzle-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.puzzle-control-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.control-label {
+  min-width: 80px;
+  color: #c9a96a;
+  font-size: 0.9rem;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.puzzle-btn {
+  background: rgba(60, 50, 35, 0.8);
+  border: 1px solid #8a7545;
+  color: #e8dcc0;
+  padding: 0.45rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.puzzle-btn:hover:not(:disabled) {
+  background: rgba(201, 169, 106, 0.25);
+  border-color: #c9a96a;
+  transform: translateY(-1px);
+}
+
+.puzzle-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.puzzle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.puzzle-btn-fine {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.puzzle-btn-secondary {
+  background: rgba(100, 90, 70, 0.5);
+}
+
+.puzzle-reset-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+/* 齿轮序列谜题 */
+.puzzle-gear-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.puzzle-gears {
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.gear-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gear-angle-display {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #a09070;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.gear-angle-display.aligned {
+  color: #58d68d;
+  background: rgba(88, 214, 141, 0.15);
+}
+
+.puzzle-gear {
+  width: 130px;
+  height: 130px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.4));
+}
+
+.puzzle-gear.gear-aligned {
+  filter: drop-shadow(0 0 15px rgba(88, 214, 141, 0.6));
+  animation: gearGlow 1.5s ease infinite;
+}
+
+@keyframes gearGlow {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(88, 214, 141, 0.4)); }
+  50% { filter: drop-shadow(0 0 20px rgba(88, 214, 141, 0.8)); }
+}
+
+.gear-label {
+  font-size: 0.9rem;
+  color: #c9a96a;
+}
+
+.gear-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  justify-content: center;
+  max-width: 150px;
+}
+
+/* 钟声和弦谜题 */
+.puzzle-bell-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.piano-keys {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+}
+
+.piano-key {
+  width: 55px;
+  height: 150px;
+  background: linear-gradient(180deg, #f5f0e5 0%, #d0c8b0 100%);
+  border: 1px solid #8a7545;
+  border-radius: 0 0 8px 8px;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 0.8rem;
+  color: #1a1510;
+  font-family: inherit;
+  font-weight: 600;
+}
+
+.piano-key:hover {
+  background: linear-gradient(180deg, #fff 0%, #e8ddc8 100%);
+}
+
+.piano-key:active, .piano-key.key-selected {
+  background: linear-gradient(180deg, #ffd700 0%, #d4a800 100%);
+  transform: translateY(2px);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.piano-key.key-selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 0 0 8px 8px;
+  box-shadow: inset 0 -3px 10px rgba(0, 0, 0, 0.2);
+}
+
+.piano-note-label {
+  font-size: 0.8rem;
+}
+
+.piano-check {
+  position: absolute;
+  top: 0.5rem;
+  color: #1a5a1a;
+  font-size: 1.2rem;
+}
+
+/* 符号解密谜题 */
+.puzzle-symbol-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.symbol-progress {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.symbol-slot {
+  width: 55px;
+  height: 55px;
+  border: 2px dashed #6a5a3a;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  color: #6a5a3a;
+  transition: all 0.2s;
+}
+
+.symbol-slot.slot-filled {
+  border-style: solid;
+  border-color: #c9a96a;
+  background: rgba(201, 169, 106, 0.1);
+  color: #f0dca8;
+  animation: slotFill 0.3s ease;
+}
+
+@keyframes slotFill {
+  0% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.symbol-slot.slot-current {
+  border-color: #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+  animation: slotPulse 1.2s ease infinite;
+}
+
+@keyframes slotPulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.4); }
+  50% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.7); }
+}
+
+.symbol-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.8rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.symbol-btn {
+  aspect-ratio: 1;
+  font-size: 2.5rem;
+  background: rgba(40, 35, 28, 0.8);
+  border: 2px solid #6a5a3a;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.symbol-btn:hover {
+  background: rgba(201, 169, 106, 0.2);
+  border-color: #c9a96a;
+  transform: scale(1.05);
+}
+
+.symbol-btn:active {
+  transform: scale(0.95);
+}
+
+/* 星座谜题 */
+.puzzle-constellation-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.constellation-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.constellation-canvas {
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 1;
+  background: radial-gradient(ellipse at center, #0a0a20 0%, #000 100%);
+  border: 2px solid #3a4a6a;
+  border-radius: 12px;
+  cursor: crosshair;
+}
+
+.star-hit {
+  animation: starSparkle 0.8s ease;
+}
+
+@keyframes starSparkle {
+  0%, 100% { r: 3; }
+  50% { r: 6; }
+}
+
+/* ---------- 探索舞台 ---------- */
+.museum-exploration-stage {
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 200px;
+  z-index: 55;
+  padding: 1rem;
+}
+
+.exploration-title {
+  text-align: center;
+  color: #f0dca8;
+  font-size: 1.3rem;
+  margin: 0 0 1rem;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.exploration-hotspots {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 3rem);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.hotspot-btn {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: rgba(20, 18, 15, 0.7);
+  border: 2px solid #c9a96a;
+  border-radius: 12px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: inherit;
+  backdrop-filter: blur(4px);
+  animation: hotspotPulse 2.5s ease infinite;
+}
+
+@keyframes hotspotPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(201, 169, 106, 0); }
+  50% { box-shadow: 0 0 15px rgba(201, 169, 106, 0.4); }
+}
+
+.hotspot-btn:hover {
+  background: rgba(201, 169, 106, 0.2);
+  transform: translate(-50%, -50%) scale(1.08);
+}
+
+.hotspot-btn.hotspot-found {
+  border-color: #58d68d;
+  background: rgba(88, 214, 141, 0.15);
+  animation: none;
+  opacity: 0.8;
+}
+
+.hotspot-icon {
+  font-size: 1.8rem;
+}
+
+.hotspot-label {
+  font-size: 0.85rem;
+  color: #f0dca8;
+  white-space: nowrap;
+}
+
+.hotspot-check {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: #58d68d;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exploration-dialog-hint {
+  text-align: center;
+  margin-top: 1rem;
+  color: #c9a96a;
+  font-size: 0.9rem;
+  animation: hintBlink 1.5s ease infinite;
+}
+
+@keyframes hintBlink {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* ---------- 对话层 ---------- */
+.museum-dialog-layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  padding: 1rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+}
+
+.dialog-speaker-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.5rem;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 0.5rem;
+}
+
+.speaker-portrait {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3px solid;
+  background: rgba(20, 18, 15, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+}
+
+.speaker-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.speaker-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.speaker-title {
+  font-size: 0.8rem;
+  color: #a09070;
+}
+
+.dialog-box {
+  max-width: 900px;
+  margin: 0 auto;
+  background: rgba(20, 18, 15, 0.92);
+  border: 2px solid #c9a96a;
+  border-radius: 14px;
+  padding: 1.2rem 1.5rem 1rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  min-height: 140px;
+  position: relative;
+  backdrop-filter: blur(8px);
+}
+
+.dialog-text {
+  font-size: 1.05rem;
+  line-height: 1.9;
+  margin: 0 0 1rem;
+  color: #e8dcc0;
+  min-height: 4.5em;
+  white-space: pre-wrap;
+}
+
+.typing-cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: #c9a96a;
+  animation: cursorBlink 0.8s step-start infinite;
+}
+
+@keyframes cursorBlink {
+  50% { opacity: 0; }
+}
+
+.dialog-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 1rem;
+  background: rgba(60, 50, 35, 0.6);
+  border: 1px solid #8a7545;
+  border-radius: 10px;
+  color: #e8dcc0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: all 0.15s;
+}
+
+.choice-btn:hover {
+  background: rgba(201, 169, 106, 0.2);
+  border-color: #c9a96a;
+  transform: translateX(4px);
+}
+
+.choice-index {
+  color: #c9a96a;
+  font-weight: 700;
+  min-width: 1.2em;
+}
+
+.choice-text {
+  flex: 1;
+}
+
+.choice-condition {
+  font-size: 0.8rem;
+  color: #f5b041;
+  opacity: 0.9;
+}
+
+.dialog-continue-hint {
+  text-align: right;
+  color: #c9a96a;
+  font-size: 0.85rem;
+  animation: hintBlink 1.5s ease infinite;
+}
+
+/* ---------- 模态框 ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: overlayIn 0.25s ease;
+}
+
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-panel {
+  background: linear-gradient(180deg, #1a1510 0%, #14120e 100%);
+  border: 2px solid #c9a96a;
+  border-radius: 16px;
+  padding: 1.5rem;
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: panelIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6), 0 0 40px rgba(201, 169, 106, 0.08);
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(201, 169, 106, 0.25);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: #f0dca8;
+  font-size: 1.4rem;
+}
+
+.modal-close {
+  background: rgba(201, 169, 106, 0.1);
+  border: 1px solid #c9a96a;
+  color: #c9a96a;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.modal-close:hover {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+/* 物品栏 */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.8rem;
+}
+
+.empty-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  color: #6a5a3a;
+  font-style: italic;
+}
+
+.inventory-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.8rem 0.5rem;
+  background: rgba(40, 35, 28, 0.6);
+  border: 2px solid #6a5a3a;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  color: #e8dcc0;
+}
+
+.inventory-item:hover {
+  border-color: #c9a96a;
+  background: rgba(201, 169, 106, 0.15);
+  transform: translateY(-3px);
+}
+
+.item-icon {
+  font-size: 2.5rem;
+}
+
+.item-name {
+  font-size: 0.85rem;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.inventory-footer {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(201, 169, 106, 0.25);
+  text-align: center;
+  color: #c9a96a;
+  font-size: 0.9rem;
+}
+
+/* 物品详情 */
+.item-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(201, 169, 106, 0.25);
+  margin-bottom: 1rem;
+}
+
+.item-detail-header h3 {
+  margin: 0 0 0.3rem;
+  color: #f0dca8;
+}
+
+.item-detail-icon {
+  font-size: 3.5rem;
+}
+
+.item-rarity {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.item-rarity-普通 {
+  background: rgba(160, 144, 112, 0.2);
+  color: #a09070;
+  border: 1px solid #a09070;
+}
+
+.item-rarity-稀有 {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db;
+  border: 1px solid #3498db;
+}
+
+.item-rarity-史诗 {
+  background: rgba(155, 89, 182, 0.2);
+  color: #9b59b6;
+  border: 1px solid #9b59b6;
+}
+
+.item-rarity-传说 {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  border: 1px solid #ffd700;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
+}
+
+.item-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.item-description {
+  color: #e8dcc0;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.item-lore {
+  margin: 0;
+  padding: 0.8rem 1rem;
+  border-left: 3px solid #c9a96a;
+  background: rgba(201, 169, 106, 0.08);
+  color: #b0a080;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.item-effect {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: rgba(88, 214, 141, 0.1);
+  border-radius: 8px;
+  color: #58d68d;
+  font-size: 0.95rem;
+}
+
+/* 章节选择 */
+.chapters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.chapter-card {
+  border: 2px solid #c9a96a;
+  border-radius: 14px;
+  padding: 1.2rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 200px;
+  font-family: inherit;
+  color: inherit;
+  position: relative;
+  overflow: hidden;
+}
+
+.chapter-card:hover:not(:disabled) {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(201, 169, 106, 0.25);
+}
+
+.chapter-card.chapter-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
+.chapter-card.chapter-completed {
+  border-color: #58d68d;
+}
+
+.chapter-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.chapter-badge {
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+}
+
+.chapter-card-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.chapter-card-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  line-height: 1.5;
+  flex: 1;
+}
+
+.chapter-card-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* 游戏菜单 */
+.menu-section {
+  margin-bottom: 1.5rem;
+}
+
+.menu-section h3 {
+  margin: 0 0 0.8rem;
+  color: #c9a96a;
+  font-size: 1.1rem;
+}
+
+.save-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.save-slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.8rem 1rem;
+  background: rgba(40, 35, 28, 0.5);
+  border: 1px solid #6a5a3a;
+  border-radius: 10px;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.save-slot-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 180px;
+}
+
+.slot-label {
+  font-weight: 600;
+  color: #f0dca8;
+}
+
+.slot-chapter {
+  font-size: 0.9rem;
+  color: #c9a96a;
+}
+
+.slot-time {
+  font-size: 0.8rem;
+  color: #a09070;
+}
+
+.slot-empty {
+  font-size: 0.9rem;
+  color: #6a5a3a;
+  font-style: italic;
+}
+
+.save-slot-actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.menu-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #8a7545;
+  background: rgba(60, 50, 35, 0.6);
+  color: #e8dcc0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+}
+
+.menu-btn:hover:not(:disabled) {
+  background: rgba(201, 169, 106, 0.2);
+  border-color: #c9a96a;
+}
+
+.menu-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.menu-btn-danger {
+  border-color: #7a3a3a;
+  color: #e8a0a0;
+}
+
+.menu-btn-danger:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.2);
+  border-color: #e74c3c;
+  color: #e74c3c;
+}
+
+.menu-btn-large {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 1rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.6rem;
+}
+
+.stats-grid .stat-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.6rem 0.8rem;
+  background: rgba(40, 35, 28, 0.5);
+  border: 1px solid #6a5a3a;
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.stats-grid .stat-item span:first-child {
+  color: #a09070;
+}
+
+.stats-grid .stat-item span:last-child {
+  color: #f0dca8;
+  font-weight: 600;
+}
+
+.menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* 加载画面 */
+.museum-loading {
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  z-index: 1000;
+}
+
+.loading-spinner {
+  font-size: 5rem;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.museum-loading p {
+  font-size: 1.1rem;
+  color: #c9a96a;
+  margin: 0;
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 768px) {
+  .museum-top-hud {
+    padding: 0.6rem 0.8rem;
+  }
+
+  .hud-chapter {
+    font-size: 0.9rem;
+  }
+
+  .hud-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+
+  .character-portrait-large {
+    width: 150px;
+    height: 150px;
+  }
+
+  .character-emoji {
+    font-size: 3rem !important;
+  }
+
+  .puzzle-clock {
+    width: 240px;
+    height: 240px;
+  }
+
+  .puzzle-gears {
+    gap: 1rem;
+  }
+
+  .puzzle-gear {
+    width: 100px;
+    height: 100px;
+  }
+
+  .piano-keys {
+    gap: 2px;
+  }
+
+  .piano-key {
+    width: 40px;
+    height: 120px;
+    padding-bottom: 0.5rem;
+  }
+
+  .symbol-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+  }
+
+  .symbol-btn {
+    font-size: 1.8rem;
+  }
+
+  .chapters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-text {
+    font-size: 1rem;
+  }
+
+  .museum-exploration-stage {
+    bottom: 220px;
+  }
+
+  .ending-title {
+    font-size: 1.8rem;
+  }
+}
