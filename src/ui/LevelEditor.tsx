@@ -96,11 +96,12 @@ function createDefaultLevel(): EditorLevelConfig {
 interface LevelEditorProps {
   onClose: () => void
   onPlay?: (level: EditorLevelConfig) => void
+  onShare?: (level: EditorLevelConfig) => void
 }
 
 type EditorTab = 'gears' | 'time' | 'faults' | 'sounds' | 'level'
 
-function LevelEditor({ onClose, onPlay }: LevelEditorProps) {
+function LevelEditor({ onClose, onPlay, onShare }: LevelEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [level, setLevel] = useState<EditorLevelConfig>(createDefaultLevel())
@@ -514,6 +515,20 @@ function LevelEditor({ onClose, onPlay }: LevelEditorProps) {
     }
   }, [level, onPlay, showToast])
 
+  const handleShareToPlaza = useCallback(() => {
+    try {
+      const loaded = loadEditorLevel(level)
+      const validation = validateLevel(loaded)
+      if (!validation.valid) {
+        alert(`关卡验证失败：\n${validation.errors.join('\n')}`)
+        return
+      }
+      onShare?.(level)
+    } catch (err) {
+      alert(`无法发布：${err instanceof Error ? err.message : String(err)}`)
+    }
+  }, [level, onShare])
+
   const formatClockTime = (t: ClockTime) =>
     `${t.hours}:${t.minutes.toString().padStart(2, '0')}`
 
@@ -538,6 +553,11 @@ function LevelEditor({ onClose, onPlay }: LevelEditorProps) {
           {onPlay && (
             <button className="editor-btn" style={{ backgroundColor: '#2d6a4f', color: '#fff' }} onClick={handlePlayLevel}>
               ▶ 试玩验证
+            </button>
+          )}
+          {onShare && (
+            <button className="editor-btn" style={{ backgroundColor: '#1a2a3a', color: '#7ab0d8', borderColor: '#5a7a9a' }} onClick={handleShareToPlaza}>
+              🏛️ 发布到广场
             </button>
           )}
           <button className="editor-close" onClick={onClose}>✕</button>

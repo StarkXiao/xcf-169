@@ -205,6 +205,11 @@ function App() {
     goTo('editor')
   }, [goTo])
 
+  const handleShareFromEditor = useCallback((levelData: EditorLevelConfig) => {
+    levelShareSystem.setPendingLevelData(levelData)
+    goTo('levelShare')
+  }, [goTo])
+
   const handlePlayEditorLevel = useCallback((_levelConfig: EditorLevelConfig) => {
     const loaded = loadCustomLevelFromStorage()
     if (loaded) {
@@ -317,7 +322,7 @@ function App() {
       )}
       {showWorkshop && <WorkshopPanel onClose={handleCloseWorkshop} />}
       {showBellChime && <BellChimePanel onClose={handleCloseBellChime} />}
-      {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} />}
+      {showEditor && <LevelEditor onClose={handleCloseEditor} onPlay={handlePlayEditorLevel} onShare={handleShareFromEditor} />}
       {showAdmin && <AdminPanel onClose={handleCloseAdmin} />}
       {showTraining && (
         <TrainingPanel

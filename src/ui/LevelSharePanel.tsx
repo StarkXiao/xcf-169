@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import type {
   SharedLevel,
   LevelSortType,
@@ -23,6 +23,7 @@ function LevelSharePanel({ onClose, onPlayLevel, onCreateLevel }: LevelSharePane
   const [difficultyFilter, setDifficultyFilter] = useState<SharedLevel['difficulty'] | undefined>()
   const [detailView, setDetailView] = useState<DetailView>(null)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [hasInitializedPending, setHasInitializedPending] = useState(false)
   const [shareForm, setShareForm] = useState({
     title: '',
     description: '',
@@ -42,6 +43,22 @@ function LevelSharePanel({ onClose, onPlayLevel, onCreateLevel }: LevelSharePane
   const refresh = useCallback(() => {
     setRefreshTrigger((t) => t + 1)
   }, [])
+
+  useEffect(() => {
+    if (hasInitializedPending) return
+    const pendingData = levelShareSystem.getPendingLevelData()
+    if (pendingData) {
+      setHasInitializedPending(true)
+      setShowShareModal(true)
+      setShareForm((prev) => ({
+        ...prev,
+        title: pendingData.displayName || pendingData.name || '',
+        description: pendingData.description || '',
+      }))
+    } else {
+      setHasInitializedPending(true)
+    }
+  }, [hasInitializedPending])
 
   const plazaLevels = useMemo(() => {
     return levelShareSystem.getSharedLevels({
@@ -84,15 +101,17 @@ function LevelSharePanel({ onClose, onPlayLevel, onCreateLevel }: LevelSharePane
       showToast('请输入关卡标题')
       return
     }
-    const defaultLevel = createDefaultLevelForShare()
+    const pendingData = levelShareSystem.getPendingLevelData()
+    const levelData = pendingData || createDefaultLevelForShare()
     const newLevel = levelShareSystem.shareLevel(
-      defaultLevel,
+      levelData,
       shareForm.title.trim(),
       shareForm.description.trim(),
       shareForm.difficulty,
       shareForm.tags.filter((t) => t.trim()),
     )
-    showToast('关卡发布成功！')
+    levelShareSystem.clearPendingLevelData()
+    showToast(pendingData ? '关卡发布成功！' : '已使用默认模板发布。下次可从编辑器直接发布你的设计！')
     setShowShareModal(false)
     setShareForm({ title: '', description: '', difficulty: 'normal', tags: [] })
     setActiveTab('my')
@@ -589,18 +608,67 @@ function LevelSharePanel({ onClose, onPlayLevel, onCreateLevel }: LevelSharePane
                 ))}
               </div>
             </div>
+            {levelShareSystem.getPendingLevelData() && (
+              <div className="form-group">
+                <label>关卡数据预览</label>
+                <div className="info-grid">
+                  <div className="info-item">
+                    <span className="info-label">齿轮数量</span>
+                    <span className="info-value">{levelShareSystem.getPendingLevelData()!.gears.length}个</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">游戏模式</span>
+                    <span className="info-value">
+                      {levelShareSystem.getPendingLevelData()!.gameMode === 'classic'
+                        ? '经典校时'
+                        : levelShareSystem.getPendingLevelData()!.gameMode === 'patrol'
+                          ? '钟楼巡夜'
+                          : '多钟面连锁'}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">初始时刻</span>
+                    <span className="info-value">
+                      {levelShareSystem.getPendingLevelData()!.initialClockTime.hours}:
+                      {levelShareSystem.getPendingLevelData()!.initialClockTime.minutes.toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">目标时刻</span>
+                    <span className="info-value success">
+                      {levelShareSystem.getPendingLevelData()!.targetClockTime.hours}:
+                      {levelShareSystem.getPendingLevelData()!.targetClockTime.minutes.toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">时长</span>
+                    <span className="info-value">{levelShareSystem.getPendingLevelData()!.duration}秒</span>
+                  </div>
+                  <div className="info-item">
+                    <span className="info-label">故障事件</span>
+                    <span className="info-value">{levelShareSystem.getPendingLevelData()!.faultEvents.filter(f => f.enabled).length}个</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="share-hint">
-              <p>💡 提示：当前使用默认关卡模板分享。你可以先在关卡编辑器中设计好关卡，再回来分享。</p>
-              {onCreateLevel && (
-                <button
-                  className="link-btn"
-                  onClick={() => {
-                    setShowShareModal(false)
-                    onCreateLevel()
-                  }}
-                >
-                  前往编辑器设计 →
-                </button>
+              {levelShareSystem.getPendingLevelData() ? (
+                <p>✅ 已加载编辑器中的关卡数据，发布后将包含你设计的齿轮、时间目标等全部配置。</p>
+              ) : (
+                <>
+                  <p>💡 当前未检测到编辑器数据，将使用默认模板发布。建议先在编辑器中设计好关卡，再点击「🏛️ 发布到广场」。</p>
+                  {onCreateLevel && (
+                    <button
+                      className="link-btn"
+                      onClick={() => {
+                        setShowShareModal(false)
+                        onCreateLevel()
+                      }}
+                    >
+                      前往编辑器设计 →
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

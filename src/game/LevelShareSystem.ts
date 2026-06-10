@@ -344,6 +344,7 @@ class LevelShareSystem {
   private comments: LevelComment[] = []
   private likedLevelIds: Set<string> = new Set()
   private myLevelIds: Set<string> = new Set()
+  private pendingLevelData: EditorLevelConfig | null = null
 
   constructor() {
     this.init()
@@ -697,6 +698,18 @@ class LevelShareSystem {
       expert: '#e85a5a',
     }
     return colors[difficulty]
+  }
+
+  setPendingLevelData(levelData: EditorLevelConfig): void {
+    this.pendingLevelData = { ...levelData, updatedAt: Date.now() }
+  }
+
+  getPendingLevelData(): EditorLevelConfig | null {
+    return this.pendingLevelData
+  }
+
+  clearPendingLevelData(): void {
+    this.pendingLevelData = null
   }
 }
 
