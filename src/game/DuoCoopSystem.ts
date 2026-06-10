@@ -25,9 +25,9 @@ export const DUO_COOP_LEVELS: DuoCoopLevelConfig[] = [
       { id: 'fog1', type: 'fog', name: '迷雾遮蔽', displayName: '迷雾遮蔽', description: '目标时刻被遮挡', icon: '🌫️', targetPlayer: 'slave', durationMs: 10000, triggerChance: 0.2, severity: 'medium' },
     ],
     syncTargets: [
-      { id: 'sync1', targetTime: { hours: 3, minutes: 0 }, toleranceMinutes: 3, label: '主钟准点', bonusScore: 500, isAchieved: false },
-      { id: 'sync2', targetTime: { hours: 9, minutes: 0 }, toleranceMinutes: 3, label: '副钟准点', bonusScore: 500, isAchieved: false },
-      { id: 'sync3', targetTime: { hours: 6, minutes: 0 }, toleranceMinutes: 8, label: '双钟对称', bonusScore: 1000, isAchieved: false },
+      { id: 'sync1', targetTime: { hours: 3, minutes: 0 }, toleranceMinutes: 3, label: '主钟准点', scope: 'master', bonusScore: 500, isAchieved: false },
+      { id: 'sync2', targetTime: { hours: 9, minutes: 0 }, toleranceMinutes: 3, label: '副钟准点', scope: 'slave', bonusScore: 500, isAchieved: false },
+      { id: 'sync3', targetTime: { hours: 6, minutes: 0 }, toleranceMinutes: 8, label: '双钟对称', scope: 'both', bonusScore: 1000, isAchieved: false },
     ],
     sharedTimeDrift: 0.3,
     interferenceIntervalMs: 15000,
@@ -49,9 +49,9 @@ export const DUO_COOP_LEVELS: DuoCoopLevelConfig[] = [
       { id: 'fog2', type: 'fog', name: '迷雾遮蔽', displayName: '迷雾遮蔽', description: '目标时刻被遮挡', icon: '🌫️', targetPlayer: 'both', durationMs: 8000, triggerChance: 0.3, severity: 'high' },
     ],
     syncTargets: [
-      { id: 'sync1', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 3, label: '主钟准点', bonusScore: 800, isAchieved: false },
-      { id: 'sync2', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 3, label: '副钟准点', bonusScore: 800, isAchieved: false },
-      { id: 'sync3', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 2, label: '精准同步', bonusScore: 2000, isAchieved: false },
+      { id: 'sync1', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 3, label: '主钟准点', scope: 'master', bonusScore: 800, isAchieved: false },
+      { id: 'sync2', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 3, label: '副钟准点', scope: 'slave', bonusScore: 800, isAchieved: false },
+      { id: 'sync3', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 2, label: '精准同步', scope: 'both', bonusScore: 2000, isAchieved: false },
     ],
     sharedTimeDrift: 0.5,
     interferenceIntervalMs: 12000,
@@ -74,10 +74,10 @@ export const DUO_COOP_LEVELS: DuoCoopLevelConfig[] = [
       { id: 'stutter3', type: 'stutter', name: '齿轮卡顿', displayName: '齿轮卡顿', description: '操作有概率无效', icon: '⚡', targetPlayer: 'both', durationMs: 8000, triggerChance: 0.4, severity: 'high' },
     ],
     syncTargets: [
-      { id: 'sync1', targetTime: { hours: 10, minutes: 10 }, toleranceMinutes: 2, label: '主钟精准', bonusScore: 1000, isAchieved: false },
-      { id: 'sync2', targetTime: { hours: 2, minutes: 50 }, toleranceMinutes: 2, label: '副钟精准', bonusScore: 1000, isAchieved: false },
-      { id: 'sync3', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 10, label: '双钟均值', bonusScore: 1500, isAchieved: false },
-      { id: 'sync4', targetTime: { hours: 12, minutes: 0 }, toleranceMinutes: 5, label: '正午共鸣', bonusScore: 3000, isAchieved: false },
+      { id: 'sync1', targetTime: { hours: 10, minutes: 10 }, toleranceMinutes: 2, label: '主钟精准', scope: 'master', bonusScore: 1000, isAchieved: false },
+      { id: 'sync2', targetTime: { hours: 2, minutes: 50 }, toleranceMinutes: 2, label: '副钟精准', scope: 'slave', bonusScore: 1000, isAchieved: false },
+      { id: 'sync3', targetTime: { hours: 6, minutes: 30 }, toleranceMinutes: 10, label: '双钟均值', scope: 'both', bonusScore: 1500, isAchieved: false },
+      { id: 'sync4', targetTime: { hours: 12, minutes: 0 }, toleranceMinutes: 5, label: '正午共鸣', scope: 'both', bonusScore: 3000, isAchieved: false },
     ],
     sharedTimeDrift: 0.7,
     interferenceIntervalMs: 9000,
@@ -411,19 +411,17 @@ export class DuoCoopSystem {
       const masterDiff = getTimeDiffMinutes(this.state.master.currentTime, target.targetTime)
       const slaveDiff = getTimeDiffMinutes(this.state.slave.currentTime, target.targetTime)
 
-      const label = target.label
       let achieved = false
-
-      if (label.includes('主钟') || label.includes('精准')) {
-        achieved = masterDiff <= target.toleranceMinutes
-      } else if (label.includes('副钟')) {
-        achieved = slaveDiff <= target.toleranceMinutes
-      } else if (label.includes('对称') || label.includes('均值')) {
-        achieved = masterDiff <= target.toleranceMinutes && slaveDiff <= target.toleranceMinutes
-      } else if (label.includes('共鸣') || label.includes('同步')) {
-        achieved = masterDiff <= target.toleranceMinutes && slaveDiff <= target.toleranceMinutes
-      } else {
-        achieved = masterDiff <= target.toleranceMinutes || slaveDiff <= target.toleranceMinutes
+      switch (target.scope) {
+        case 'master':
+          achieved = masterDiff <= target.toleranceMinutes
+          break
+        case 'slave':
+          achieved = slaveDiff <= target.toleranceMinutes
+          break
+        case 'both':
+          achieved = masterDiff <= target.toleranceMinutes && slaveDiff <= target.toleranceMinutes
+          break
       }
 
       if (achieved) {

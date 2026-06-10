@@ -584,6 +584,7 @@ export interface DuoCoopSyncTarget {
   targetTime: ClockTime
   toleranceMinutes: number
   label: string
+  scope: 'master' | 'slave' | 'both'
   bonusScore: number
   isAchieved: boolean
 }
