@@ -209,47 +209,6 @@ export type SoundEvent =
   | 'storm_rollback'
   | 'storm_end'
 
-export type StormPhase = 'idle' | 'warning' | 'active' | 'ended'
-
-export interface LightningStrikeEffect {
-  strikeId: string
-  timestamp: number
-  affectedGearIds: number[]
-  gearAngleChanges: Map<number, number>
-  targetTimeChanged: boolean
-  previousTargetTime?: ClockTime
-  newTargetTime?: ClockTime
-  scorePenalty: number
-}
-
-export interface StormState {
-  phase: StormPhase
-  intensity: WeatherIntensity
-  warningTimeLeft: number
-  activeTimeLeft: number
-  strikesThisStorm: number
-  rollbackCharges: number
-  totalStrikes: number
-}
-
-export interface StormCallbacks {
-  onStormWarning?: (secondsLeft: number) => void
-  onStormStart?: () => void
-  onLightningStrike?: (effect: LightningStrikeEffect) => void
-  onRollbackUsed?: (strike: LightningStrikeEffect) => void
-  onStormEnd?: (stats: StormStats) => void
-  onStateChange?: (state: StormState) => void
-}
-
-export interface StormStats {
-  totalStrikes: number
-  totalGearsAffected: number
-  targetTimesChanged: number
-  rollbacksUsed: number
-  scorePenalty: number
-  scoreBonus: number
-}
-
 export type EditorSoundEventType = SoundEvent
 
 export interface EditorSoundConfig {
@@ -313,169 +272,78 @@ export interface EditorLevelConfig {
   updatedAt: number
 }
 
-export type BellNotePitch =
-  | 'C3' | 'D3' | 'E3' | 'F3' | 'G3' | 'A3' | 'B3'
-  | 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4'
-  | 'C5' | 'D5' | 'E5' | 'F5' | 'G5' | 'A5' | 'B5'
-  | 'C6'
+// ==================== 风暴系统 (StormSystem) ====================
 
-export const BELL_NOTE_FREQUENCIES: Record<BellNotePitch, number> = {
-  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
-  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
-  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
-  C6: 1046.50,
+export type StormPhase = 'idle' | 'warning' | 'active' | 'ended'
+
+export interface LightningStrikeEffect {
+  strikeId: string
+  timestamp: number
+  affectedGearIds: number[]
+  gearAngleChanges: Map<number, number>
+  targetTimeChanged: boolean
+  previousTargetTime?: ClockTime
+  newTargetTime?: ClockTime
+  scorePenalty: number
 }
 
-export interface BellNote {
-  id: string
-  pitch: BellNotePitch
-  startTime: number
-  duration: number
-  velocity: number
-  layer: number
+export interface StormState {
+  phase: StormPhase
+  intensity: WeatherIntensity
+  warningTimeLeft: number
+  activeTimeLeft: number
+  strikesThisStorm: number
+  rollbackCharges: number
+  totalStrikes: number
 }
 
-export type HarmonyType = 'unison' | 'third' | 'fifth' | 'octave' | 'triad' | 'seventh'
-
-export interface HarmonyLayerConfig {
-  id: string
-  name: string
-  displayName: string
-  enabled: boolean
-  harmonyType: HarmonyType
-  basePitch: BellNotePitch
-  octaveShift: number
-  detune: number
-  volume: number
-  attack: number
-  release: number
+export interface StormCallbacks {
+  onStormWarning?: (warningDuration: number) => void
+  onStormStart?: () => void
+  onLightningStrike?: (effect: LightningStrikeEffect) => void
+  onRollbackUsed?: (effect: LightningStrikeEffect) => void
+  onStormEnd?: (stats: StormStats) => void
+  onStateChange?: (state: StormState) => void
 }
 
-export type BellTriggerType =
-  | 'time_aligned'
-  | 'level_success'
-  | 'level_fail'
-  | 'period_transition'
-  | 'tower_align'
-  | 'gear_snap'
-  | 'storm_end'
-  | 'custom_score'
-
-export interface BellTriggerCondition {
-  id: string
-  name: string
-  displayName: string
-  type: BellTriggerType
-  enabled: boolean
-  threshold?: number
-  repeatable: boolean
-  cooldownMs: number
-  description: string
+export interface StormStats {
+  totalStrikes: number
+  totalGearsAffected: number
+  targetTimesChanged: number
+  rollbacksUsed: number
+  scorePenalty: number
+  scoreBonus: number
 }
 
-export type RhythmPatternType =
-  | 'steady'
-  | 'crescendo'
-  | 'diminuendo'
-  | 'waltz'
-  | 'marching'
-  | 'fanfare'
-  | 'arpeggio'
+// ==================== 训练营系统 (TrainingSystem / TrainingGame / TrainingScene) ====================
 
-export interface RhythmBeat {
-  index: number
-  timeOffset: number
-  accent: 'none' | 'weak' | 'strong'
-  rest: boolean
-}
+export type LessonType =
+  | 'gear_basics'
+  | 'gear_linkage'
+  | 'time_conversion'
+  | 'combined_practice'
+  | 'fault_handling'
 
-export interface RhythmPatternConfig {
-  id: string
-  name: string
-  displayName: string
-  type: RhythmPatternType
-  bpm: number
-  beatsPerMeasure: number
-  beats: RhythmBeat[]
-  repeatCount: number
-  swingFactor: number
-}
+export type LessonDifficulty = 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'expert'
 
-export interface BellChimePreset {
-  id: string
-  name: string
-  displayName: string
-  description: string
-  unlockScore: number
-  basePitches: BellNotePitch[]
-  rhythmPatternId: string
-  harmonyLayerIds: string[]
-  triggerIds: string[]
-  isDefault?: boolean
-}
-
-export interface BellChimeWorkshopState {
-  currentPresetId: string | null
-  unlockedPresetIds: string[]
-  customPresets: BellChimePreset[]
-  rhythmPatterns: RhythmPatternConfig[]
-  harmonyLayers: HarmonyLayerConfig[]
-  triggers: BellTriggerCondition[]
-  totalBellScoreEarned: number
-}
-
-export interface BellChimePlaybackOptions {
-  volumeMultiplier?: number
-  playbackRate?: number
-  onNoteStart?: (note: BellNote) => void
-  onComplete?: () => void
-}
-
-export interface BellChimeRuntimeStats {
-  lastTriggerTime: number
-  playCount: number
-  totalNotesPlayed: number
-}
-
-export type LessonType = 'gear_basics' | 'gear_linkage' | 'time_conversion' | 'combined_practice' | 'fault_handling'
-
-export type LessonDifficulty = 'intro' | 'beginner' | 'intermediate' | 'advanced' | 'master'
-
-export interface TrainingLesson {
-  id: string
-  type: LessonType
-  difficulty: LessonDifficulty
-  order: number
-  title: string
-  subtitle: string
-  description: string
-  unlockScore: number
-  targetScore: number
-  duration: number
-  steps: LessonStep[]
-  gears: TrainingGearConfig[]
-  initialClockTime: ClockTime
-  targetClockTime: ClockTime
-  toleranceMinutes: number
-  rewards: LessonRewards
-}
-
-export interface LessonStep {
-  id: string
-  order: number
-  type: 'demo' | 'instruction' | 'challenge' | 'quiz' | 'checkpoint'
-  title: string
-  content: string
-  hint?: string
-  expectedActions?: ExpectedAction[]
-  isComplete: boolean
-}
+export type LessonStepType = 'instruction' | 'demo' | 'challenge' | 'quiz' | 'checkpoint'
 
 export interface ExpectedAction {
   gearId: number
   direction: 1 | -1
   times: number
   description?: string
+}
+
+export interface LessonStep {
+  id: string
+  order: number
+  type: LessonStepType
+  title: string
+  content: string
+  hint?: string
+  expectedActions?: ExpectedAction[]
+  isComplete: boolean
 }
 
 export interface TrainingGearConfig {
@@ -497,23 +365,31 @@ export interface LessonRewards {
   unlocks?: string[]
 }
 
-export interface LessonProgress {
-  lessonId: string
-  bestScore: number
-  bestTime: number
-  stars: number
-  completedAt?: number
-  attempts: number
+export interface TrainingLesson {
+  id: string
+  type: LessonType
+  difficulty: LessonDifficulty
+  order: number
+  title: string
+  subtitle: string
+  description: string
+  unlockScore: number
+  targetScore: number
+  duration: number
+  toleranceMinutes: number
+  initialClockTime: ClockTime
+  targetClockTime: ClockTime
+  gears: TrainingGearConfig[]
+  steps: LessonStep[]
+  rewards: LessonRewards
 }
 
-export interface TrainingProgress {
-  currentLessonId: string | null
-  completedLessons: LessonProgress[]
-  totalExp: number
-  totalScore: number
-  level: number
-  badges: string[]
-  unlockedLessons: string[]
+export interface TrainingActionRecord {
+  timestamp: number
+  gearId: number
+  direction: 1 | -1
+  timeDelta: number
+  isCorrect: boolean
 }
 
 export interface TrainingGameResult {
@@ -529,12 +405,23 @@ export interface TrainingGameResult {
   actionsRecord: TrainingActionRecord[]
 }
 
-export interface TrainingActionRecord {
-  timestamp: number
-  gearId: number
-  direction: 1 | -1
-  timeDelta: number
-  isCorrect: boolean
+export interface LessonProgress {
+  lessonId: string
+  bestScore: number
+  bestTime: number
+  stars: number
+  completedAt: number
+  attempts: number
+}
+
+export interface TrainingProgress {
+  currentLessonId: string | null
+  completedLessons: LessonProgress[]
+  totalExp: number
+  totalScore: number
+  level: number
+  badges: string[]
+  unlockedLessons: string[]
 }
 
 export interface TrainingBadge {
@@ -564,7 +451,138 @@ export interface TrainingReviewData {
   suggestions: string[]
 }
 
-export type DuoCoopInterferenceType = 'drift' | 'rebound' | 'fog' | 'magnet' | 'stutter'
+// ==================== 钟声谱面系统 (BellChimeSystem / BellChimePanel) ====================
+
+export type BellNotePitch =
+  | 'C3' | 'D3' | 'E3' | 'F3' | 'G3' | 'A3' | 'B3'
+  | 'C4' | 'D4' | 'E4' | 'F4' | 'G4' | 'A4' | 'B4'
+  | 'C5' | 'D5' | 'E5' | 'F5' | 'G5' | 'A5' | 'B5'
+  | 'C6'
+
+export const BELL_NOTE_FREQUENCIES: Record<BellNotePitch, number> = {
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00, A3: 220.00, B3: 246.94,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
+  C6: 1046.50,
+}
+
+export type HarmonyType = 'unison' | 'third' | 'fifth' | 'octave' | 'triad' | 'seventh'
+
+export interface HarmonyLayerConfig {
+  id: string
+  name: string
+  displayName: string
+  enabled: boolean
+  harmonyType: HarmonyType
+  basePitch: BellNotePitch
+  octaveShift: number
+  detune: number
+  volume: number
+  attack: number
+  release: number
+}
+
+export type BeatAccent = 'strong' | 'weak' | 'none'
+
+export interface RhythmBeat {
+  index: number
+  timeOffset: number
+  accent: BeatAccent
+  rest: boolean
+}
+
+export type RhythmPatternType = 'steady' | 'waltz' | 'marching' | 'fanfare' | 'crescendo' | 'arpeggio'
+
+export interface RhythmPatternConfig {
+  id: string
+  name: string
+  displayName: string
+  type: RhythmPatternType
+  bpm: number
+  beatsPerMeasure: number
+  beats: RhythmBeat[]
+  repeatCount: number
+  swingFactor: number
+}
+
+export type BellTriggerType =
+  | 'time_aligned'
+  | 'level_success'
+  | 'level_fail'
+  | 'period_transition'
+  | 'tower_align'
+  | 'gear_snap'
+  | 'storm_end'
+
+export interface BellTriggerCondition {
+  id: string
+  name: string
+  displayName: string
+  type: BellTriggerType
+  enabled: boolean
+  repeatable: boolean
+  cooldownMs: number
+  description: string
+}
+
+export interface BellChimePreset {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  unlockScore: number
+  basePitches: BellNotePitch[]
+  rhythmPatternId: string
+  harmonyLayerIds: string[]
+  triggerIds: string[]
+  isDefault?: boolean
+}
+
+export interface BellChimeWorkshopState {
+  currentPresetId: string
+  unlockedPresetIds: string[]
+  customPresets: BellChimePreset[]
+  rhythmPatterns: RhythmPatternConfig[]
+  harmonyLayers: HarmonyLayerConfig[]
+  triggers: BellTriggerCondition[]
+  totalBellScoreEarned: number
+}
+
+export interface BellNote {
+  id: string
+  pitch: BellNotePitch
+  startTime: number
+  duration: number
+  velocity: number
+  layer: number
+}
+
+export interface BellChimeRuntimeStats {
+  lastTriggerTime: number
+  playCount: number
+  totalNotesPlayed: number
+}
+
+export interface BellChimePlaybackOptions {
+  playbackRate?: number
+  volumeMultiplier?: number
+  startDelay?: number
+  onNoteStart?: (note: BellNote) => void
+  onComplete?: () => void
+}
+
+// ==================== 双人协作系统 (DuoCoopSystem / DuoCoopGame / DuoCoopScene) ====================
+
+export type DuoCoopPlayerRole = 'master' | 'slave'
+
+export type DuoCoopInterferenceType =
+  | 'drift'
+  | 'rebound'
+  | 'fog'
+  | 'magnet'
+  | 'stutter'
+
+export type InterferenceSeverity = 'low' | 'medium' | 'high'
 
 export interface DuoCoopInterferenceEvent {
   id: string
@@ -573,35 +591,22 @@ export interface DuoCoopInterferenceEvent {
   displayName: string
   description: string
   icon: string
-  targetPlayer: 'master' | 'slave' | 'both'
+  targetPlayer: DuoCoopPlayerRole | 'both'
   durationMs: number
   triggerChance: number
-  severity: 'low' | 'medium' | 'high'
+  severity: InterferenceSeverity
 }
+
+export type DuoCoopSyncScope = 'master' | 'slave' | 'both'
 
 export interface DuoCoopSyncTarget {
   id: string
   targetTime: ClockTime
   toleranceMinutes: number
   label: string
-  scope: 'master' | 'slave' | 'both'
+  scope: DuoCoopSyncScope
   bonusScore: number
   isAchieved: boolean
-}
-
-export interface DuoCoopPlayerState {
-  role: 'master' | 'slave'
-  currentTime: ClockTime
-  targetTime: ClockTime
-  deviationMinutes: number
-  isAligned: boolean
-  driftAccumulator: number
-  reboundCooldown: number
-  fogActive: boolean
-  magnetPullDir: 0 | 1 | -1
-  stutterActive: boolean
-  lastOperationTime: number
-  operationCount: number
 }
 
 export interface DuoCoopLevelConfig {
@@ -620,11 +625,26 @@ export interface DuoCoopLevelConfig {
   interferenceIntervalMs: number
 }
 
+export interface DuoCoopPlayerState {
+  role: DuoCoopPlayerRole
+  currentTime: ClockTime
+  targetTime: ClockTime
+  deviationMinutes: number
+  isAligned: boolean
+  driftAccumulator: number
+  reboundCooldown: number
+  fogActive: boolean
+  magnetPullDir: number
+  stutterActive: boolean
+  lastOperationTime: number
+  operationCount: number
+}
+
 export interface DuoCoopState {
   levelConfig: DuoCoopLevelConfig
   master: DuoCoopPlayerState
   slave: DuoCoopPlayerState
-  activeInterferences: (DuoCoopInterferenceEvent & { expiresAt: number })[]
+  activeInterferences: Array<DuoCoopInterferenceEvent & { expiresAt: number }>
   syncTargets: DuoCoopSyncTarget[]
   syncScore: number
   isCompleted: boolean
@@ -634,8 +654,6 @@ export interface DuoCoopState {
   lastInterferenceTime: number
   sharedDrift: number
 }
-
-export type DuoCoopGameStatus = 'idle' | 'playing' | 'success' | 'failed'
 
 export interface DuoCoopGameResult {
   success: boolean
