@@ -5,6 +5,7 @@ import DuoCoopGame from './game/DuoCoopGame'
 import CustomGame from './game/CustomGame'
 import TrainingGame from './game/TrainingGame'
 import RoguelikeGame from './game/roguelike/RoguelikeGame'
+import ContinuousShiftGame from './game/ContinuousShiftGame'
 import StartScreen from './ui/StartScreen'
 import GameOverPanel from './ui/GameOverPanel'
 import MultiClockGameOverPanel from './ui/MultiClockGameOverPanel'
@@ -20,20 +21,24 @@ import MuseumGameView from './ui/museum/MuseumGameView'
 import LevelSharePanel from './ui/LevelSharePanel'
 import FestivalActivityPanel from './ui/FestivalActivityPanel'
 import KeeperDiaryPanel from './ui/KeeperDiaryPanel'
+import ContinuousShiftResultPanel from './ui/ContinuousShiftResultPanel'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
+import type { ShiftGameResult } from './types/continuousShift'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 import { levelShareSystem } from './game/LevelShareSystem'
 import { keeperDiarySystem } from './game/KeeperDiarySystem'
+import { ContinuousShiftSystem } from './game/ContinuousShiftSystem'
 import './styles/roguelike.css'
 import './styles/museum.css'
 import './styles/level-share.css'
 import './styles/keeper-diary.css'
+import './styles/continuousShift.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival' | 'keeperDiary'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival' | 'keeperDiary' | 'continuousShift' | 'continuousShiftResult'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -44,6 +49,8 @@ function App() {
   const [trainingResult, setTrainingResult] = useState<TrainingGameResult | null>(null)
   const [roguelikeResult, setRoguelikeResult] = useState<RoguelikeGameResult | null>(null)
   const [duoCoopResult, setDuoCoopResult] = useState<DuoCoopGameResult | null>(null)
+  const [continuousShiftResult, setContinuousShiftResult] = useState<ShiftGameResult | null>(null)
+  const [loadSavedShift, setLoadSavedShift] = useState(false)
   const [currentSharedLevelId, setCurrentSharedLevelId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -64,7 +71,7 @@ function App() {
 
     if (currentSharedLevelId && result.success && customLevel) {
       const timeUsed = customLevel.duration - result.timeLeft
-      const deviation = 'totalDeviation' in result ? result.totalDeviation : 0
+      const deviation = result.totalDeviation ?? 0
       levelShareSystem.recordClear(currentSharedLevelId, result.score, Math.max(1, timeUsed), deviation)
     }
 
@@ -168,6 +175,38 @@ function App() {
   const handleRoguelikeRestart = useCallback(() => {
     setRoguelikeResult(null)
     goTo('roguelike')
+  }, [goTo])
+
+  const handleStartContinuousShift = useCallback(() => {
+    setContinuousShiftResult(null)
+    setLoadSavedShift(false)
+    goTo('continuousShift')
+  }, [goTo])
+
+  const handleContinueContinuousShift = useCallback(() => {
+    setContinuousShiftResult(null)
+    setLoadSavedShift(true)
+    goTo('continuousShift')
+  }, [goTo])
+
+  const handleContinuousShiftEnd = useCallback((result: ShiftGameResult) => {
+    setContinuousShiftResult(result)
+    workshopSystem.recordGameScore(result.totalScore)
+    bellChimeSystem.recordScore(result.totalScore)
+    bellChimeSystem.resetTriggers()
+    goTo('continuousShiftResult')
+  }, [goTo])
+
+  const handleContinuousShiftExit = useCallback(() => {
+    setContinuousShiftResult(null)
+    setLoadSavedShift(false)
+    goTo('menu')
+  }, [goTo])
+
+  const handleContinuousShiftRestart = useCallback(() => {
+    setContinuousShiftResult(null)
+    setLoadSavedShift(false)
+    goTo('continuousShift')
   }, [goTo])
 
   const handleStartDuoCoop = useCallback(() => {
@@ -287,7 +326,11 @@ function App() {
   const showLevelShare = view === 'levelShare'
   const showFestival = view === 'festival'
   const showKeeperDiary = view === 'keeperDiary'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival && !showKeeperDiary
+  const showContinuousShift = view === 'continuousShift'
+  const showContinuousShiftResult = view === 'continuousShiftResult'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival && !showKeeperDiary && !showContinuousShift && !showContinuousShiftResult
+
+  const hasSavedShiftGame = new ContinuousShiftSystem(7).hasSavedGame()
 
   return (
     <div className="app-container">
@@ -313,6 +356,9 @@ function App() {
           onOpenLevelShare={handleOpenLevelShare}
           onOpenFestival={handleOpenFestival}
           onOpenKeeperDiary={handleOpenKeeperDiary}
+          onStartContinuousShift={handleStartContinuousShift}
+          onContinueContinuousShift={handleContinueContinuousShift}
+          hasSavedShiftGame={hasSavedShiftGame}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -413,6 +459,21 @@ function App() {
       )}
       {showKeeperDiary && (
         <KeeperDiaryPanel onClose={handleCloseKeeperDiary} />
+      )}
+      {showContinuousShift && (
+        <ContinuousShiftGame
+          totalNights={7}
+          loadSaved={loadSavedShift}
+          onGameEnd={handleContinuousShiftEnd}
+          onExit={handleContinuousShiftExit}
+        />
+      )}
+      {showContinuousShiftResult && continuousShiftResult && (
+        <ContinuousShiftResultPanel
+          result={continuousShiftResult}
+          onRestart={handleContinuousShiftRestart}
+          onBackToMenu={handleContinuousShiftExit}
+        />
       )}
     </div>
   )

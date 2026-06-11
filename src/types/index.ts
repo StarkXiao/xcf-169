@@ -19,6 +19,8 @@ export interface GameResult {
   periodsCleared?: number
   totalPeriods?: number
   patrolScoreBreakdown?: PatrolScoreBreakdown
+  bellEvaluation?: BellChimeEvaluation
+  totalDeviation?: number
 }
 
 export type GameStatus = 'idle' | 'playing' | 'success' | 'failed'
@@ -972,4 +974,71 @@ export interface KeeperDiaryEffects {
   hasHiddenMode: boolean
   customTargetTime?: ClockTime
   customToleranceMinutes?: number
+}
+
+export type BellChimeGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F'
+
+export interface BellChimeEvaluation {
+  grade: BellChimeGrade
+  score: number
+  accuracyScore: number
+  speedScore: number
+  flowScore: number
+  accuracyBonus: number
+  speedBonus: number
+  flowBonus: number
+  totalBonus: number
+  details: {
+    finalDeviationMinutes: number
+    timeRemainingRatio: number
+    faultCount: number
+    comboHighest: number
+    perfectSnaps: number
+    totalRotations: number
+  }
+}
+
+export interface BellChimeGradeConfig {
+  grade: BellChimeGrade
+  name: string
+  description: string
+  color: string
+  minScore: number
+  scoreMultiplier: number
+  bellPresetId?: string
+  particleCount: number
+  vibrationIntensity: number
+}
+
+export interface GameplayActionRecord {
+  timestamp: number
+  type: 'gear_rotate' | 'fault_occur' | 'fault_clear' | 'time_align' | 'storm_event' | 'rollback_used'
+  gearId?: number
+  direction?: 1 | -1
+  result?: 'success' | 'failure' | 'skip' | 'reverse' | 'slip'
+}
+
+export interface GameplayReplayData {
+  id: string
+  timestamp: number
+  mode: string
+  duration: number
+  success: boolean
+  finalScore: number
+  evaluation: BellChimeEvaluation
+  actions: GameplayActionRecord[]
+  initialTargetTime: ClockTime
+  finalCurrentTime: ClockTime
+  finalDeviationMinutes: number
+}
+
+export interface BellChimeEvaluationState {
+  currentCombo: number
+  highestCombo: number
+  perfectSnaps: number
+  totalRotations: number
+  faultCount: number
+  startTime: number
+  lastActionTime: number
+  actions: GameplayActionRecord[]
 }

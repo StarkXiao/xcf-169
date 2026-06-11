@@ -1,7 +1,8 @@
 import type { GameResult } from '../types'
 import { useState, useEffect } from 'react'
 import { keeperDiarySystem } from '../game/KeeperDiarySystem'
-import type { DiaryEntry } from '../types'
+import { BELL_GRADE_CONFIGS } from '../game/BellChimeEvaluationSystem'
+import type { DiaryEntry, BellChimeGradeConfig } from '../types'
 
 interface GameOverPanelProps {
   result: GameResult
@@ -30,6 +31,10 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
   const isPerfect = result.score >= 2500
   const currentChapter = keeperDiarySystem.getCurrentDiaryChapter()
   const settlementText = keeperDiarySystem.getSettlementText(currentChapter?.id || null)
+  const evaluation = result.bellEvaluation
+  const gradeConfig: BellChimeGradeConfig | null = evaluation
+    ? BELL_GRADE_CONFIGS[evaluation.grade]
+    : null
 
   const getResultTitle = () => {
     if (isPatrol) {
@@ -88,6 +93,21 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
       <h1 className={`result-title ${result.success ? 'success' : 'failed'}`}>
         {getResultTitle()}
       </h1>
+      {gradeConfig && (
+        <div
+          className="bell-grade-badge"
+          style={{
+            borderColor: gradeConfig.color,
+            boxShadow: `0 0 30px ${gradeConfig.color}40`,
+          }}
+        >
+          <div className="bell-grade-letter" style={{ color: gradeConfig.color }}>
+            {evaluation?.grade}
+          </div>
+          <div className="bell-grade-name">{gradeConfig.name}</div>
+          <div className="bell-grade-desc">{gradeConfig.description}</div>
+        </div>
+      )}
       <p className="game-subtitle">
         {getResultSubtitle()}
       </p>
@@ -145,6 +165,59 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
           <span className="stat-label">剩余时间</span>
           <span className="stat-value">{formatTime(result.timeLeft)}</span>
         </div>
+        {evaluation && (
+          <>
+            <div className="stat-section-divider" />
+            <div className="stat-section-title">🔔 钟声评价</div>
+            <div className="stat-row">
+              <span className="stat-label">精度分</span>
+              <span className="stat-value" style={{ color: '#7ec97e' }}>{evaluation.accuracyScore}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">速度分</span>
+              <span className="stat-value" style={{ color: '#7ec97e' }}>{evaluation.speedScore}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">流畅分</span>
+              <span className="stat-value" style={{ color: '#7ec97e' }}>{evaluation.flowScore}</span>
+            </div>
+            <div className="stat-row breakdown-row">
+              <span className="stat-label">  精度加成</span>
+              <span className="stat-value" style={{ color: '#c9a96a' }}>+{evaluation.accuracyBonus}</span>
+            </div>
+            <div className="stat-row breakdown-row">
+              <span className="stat-label">  速度加成</span>
+              <span className="stat-value" style={{ color: '#c9a96a' }}>+{evaluation.speedBonus}</span>
+            </div>
+            <div className="stat-row breakdown-row">
+              <span className="stat-label">  流畅加成</span>
+              <span className="stat-value" style={{ color: '#c9a96a' }}>+{evaluation.flowBonus}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">评价加成合计</span>
+              <span className="stat-value" style={{ color: '#ffd700', fontWeight: 'bold' }}>
+                +{evaluation.totalBonus}
+              </span>
+            </div>
+            <div className="stat-section-divider" />
+            <div className="stat-row">
+              <span className="stat-label">最高连击</span>
+              <span className="stat-value">{evaluation.details.comboHighest}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">完美咬合</span>
+              <span className="stat-value">{evaluation.details.perfectSnaps}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">故障次数</span>
+              <span className="stat-value" style={{ color: '#e85a5a' }}>{evaluation.details.faultCount}</span>
+            </div>
+            <div className="stat-row">
+              <span className="stat-label">总操作次数</span>
+              <span className="stat-value">{evaluation.details.totalRotations}</span>
+            </div>
+          </>
+        )}
         {isPatrol && (
           <div className="stat-row">
             <span className="stat-label">完成时段</span>
@@ -153,23 +226,25 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
             </span>
           </div>
         )}
-        <div className="stat-row">
-          <span className="stat-label">评级</span>
-          <span className="stat-value" style={{
-            color: result.score >= 3000 ? '#ffd700'
-              : result.score >= 2000 ? '#c0c0c0'
-              : result.score >= 1000 ? '#cd7f32'
-              : '#8b7d5c'
-          }}>
-            {result.score >= 3000
-              ? (isPatrol ? '⭐⭐⭐ 传奇守钟人' : '⭐ 完美校时')
-              : result.score >= 2000
-                ? (isPatrol ? '⭐⭐ 资深守钟人' : '精准校时')
-                : result.score >= 1000
-                  ? (isPatrol ? '⭐ 合格守钟人' : '勉强过关')
-                  : (isPatrol ? '见习守钟人' : '下次加油')}
-          </span>
-        </div>
+        {!evaluation && (
+          <div className="stat-row">
+            <span className="stat-label">评级</span>
+            <span className="stat-value" style={{
+              color: result.score >= 3000 ? '#ffd700'
+                : result.score >= 2000 ? '#c0c0c0'
+                : result.score >= 1000 ? '#cd7f32'
+                : '#8b7d5c'
+            }}>
+              {result.score >= 3000
+                ? (isPatrol ? '⭐⭐⭐ 传奇守钟人' : '⭐ 完美校时')
+                : result.score >= 2000
+                  ? (isPatrol ? '⭐⭐ 资深守钟人' : '精准校时')
+                  : result.score >= 1000
+                    ? (isPatrol ? '⭐ 合格守钟人' : '勉强过关')
+                    : (isPatrol ? '见习守钟人' : '下次加油')}
+            </span>
+          </div>
+        )}
       </div>
 
       {newlyUnlockedDiaries.length > 0 && (

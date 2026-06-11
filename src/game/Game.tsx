@@ -8,6 +8,7 @@ import { NightPatrolSystem, NIGHT_PERIODS } from './NightPatrolSystem'
 import { StormSystem } from './StormSystem'
 import { workshopSystem } from './WorkshopSystem'
 import { keeperDiarySystem } from './KeeperDiarySystem'
+import { bellChimeEvaluationSystem } from './BellChimeEvaluationSystem'
 import GameHUD from '../ui/GameHUD'
 import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
 
@@ -173,8 +174,29 @@ function Game({ onGameEnd, mode }: GameProps) {
       }
       setTimeout(() => {
         const breakdown = patrol.getScoreBreakdown()
-        const finalScore = Math.max(0, breakdown.total + stormImpact)
+        const baseScore = Math.max(0, breakdown.total + stormImpact)
+        const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
+        const evaluation = bellChimeEvaluationSystem.evaluate(
+          success,
+          diffMinutes,
+          remaining,
+          totalTime,
+          baseScore,
+        )
+        const finalScore = baseScore + evaluation.totalBonus
+
         workshopSystem.recordGameScore(finalScore)
+
+        bellChimeEvaluationSystem.saveReplay(
+          'patrol',
+          success,
+          finalScore,
+          evaluation,
+          gs.getTargetTime(),
+          gs.getCurrentTime(),
+          diffMinutes,
+        )
+
         onGameEnd({
           success,
           score: finalScore,
@@ -186,6 +208,8 @@ function Game({ onGameEnd, mode }: GameProps) {
             ...breakdown,
             total: finalScore,
           },
+          bellEvaluation: evaluation,
+          totalDeviation: diffMinutes,
         })
       }, 2500)
       return
@@ -200,17 +224,37 @@ function Game({ onGameEnd, mode }: GameProps) {
 
     const diffMinutes = success ? 0 : gs.getTimeDiffMinutes()
     const baseScore = calculateClassicScore(remaining, diffMinutes)
-    const finalScore = Math.max(0, baseScore + stormImpact)
+    const baseScoreWithStorm = Math.max(0, baseScore + stormImpact)
+    const evaluation = bellChimeEvaluationSystem.evaluate(
+      success,
+      diffMinutes,
+      remaining,
+      totalTime,
+      baseScoreWithStorm,
+    )
+    const finalScore = baseScoreWithStorm + evaluation.totalBonus
     workshopSystem.recordGameScore(finalScore)
+
+    bellChimeEvaluationSystem.saveReplay(
+      'classic',
+      success,
+      finalScore,
+      evaluation,
+      gs.getTargetTime(),
+      gs.getCurrentTime(),
+      diffMinutes,
+    )
 
     setTimeout(() => {
       onGameEnd({
         success,
         score: finalScore,
         timeLeft: remaining,
+        bellEvaluation: evaluation,
+        totalDeviation: diffMinutes,
       })
     }, 3000)
-  }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode])
+  }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode, totalTime])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -324,15 +368,22 @@ function Game({ onGameEnd, mode }: GameProps) {
       (gearId: number, direction: 1 | -1) => {
         if (gameEnded) return
         const result = gearSystem.rotateGear(gearId, direction)
+
         if (result.skipped) {
+          bellChimeEvaluationSystem.recordAction({ type: 'gear_rotate', gearId, direction, result: 'skip' })
           sound.playGearFault()
           scene.flashGearFault(gearId)
           if (patrol) {
             patrol.addFaultPenalty(15)
           }
-        } else if (result.reversed || result.slipped) {
+        } else if (result.reversed) {
+          bellChimeEvaluationSystem.recordAction({ type: 'gear_rotate', gearId, direction, result: 'reverse' })
+          sound.playGearFault()
+        } else if (result.slipped) {
+          bellChimeEvaluationSystem.recordAction({ type: 'gear_rotate', gearId, direction, result: 'slip' })
           sound.playGearFault()
         } else {
+          bellChimeEvaluationSystem.recordAction({ type: 'gear_rotate', gearId, direction, result: 'success' })
           sound.playGearRotate()
         }
       },
@@ -348,6 +399,7 @@ function Game({ onGameEnd, mode }: GameProps) {
     })
 
     gearSystem.setOnTargetReached(() => {
+      bellChimeEvaluationSystem.recordAction({ type: 'time_align', result: 'success' })
       if (isPatrolMode) {
         handlePeriodComplete()
       } else {
@@ -356,6 +408,7 @@ function Game({ onGameEnd, mode }: GameProps) {
     })
 
     gearSystem.setOnFaultTriggered((gearId: number, _faultType: GearFaultType) => {
+      bellChimeEvaluationSystem.recordAction({ type: 'fault_occur', gearId, result: 'failure' })
       scene.flashGearFault(gearId)
     })
 
@@ -418,6 +471,7 @@ function Game({ onGameEnd, mode }: GameProps) {
 
         storm.start()
         timer.start()
+        bellChimeEvaluationSystem.startSession()
       } else {
         setTimeout(initScene, 100)
       }

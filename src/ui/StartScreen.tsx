@@ -17,9 +17,12 @@ interface StartScreenProps {
   onOpenLevelShare: () => void
   onOpenFestival: () => void
   onOpenKeeperDiary: () => void
+  onStartContinuousShift: () => void
+  onContinueContinuousShift: () => void
+  hasSavedShiftGame: boolean
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival, onOpenKeeperDiary }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival, onOpenKeeperDiary, onStartContinuousShift, onContinueContinuousShift, hasSavedShiftGame }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
   const [diaryNewCount, setDiaryNewCount] = useState(0)
@@ -129,6 +132,17 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
           <div className="mode-desc">
             主钟+副钟双操控<br />
             共享漂移 · 干扰事件 · 同步目标
+          </div>
+        </button>
+        <button className="start-btn mode-btn continuous-shift-btn" onClick={hasSavedShiftGame ? onContinueContinuousShift : onStartContinuousShift} style={{
+          background: 'linear-gradient(180deg, #3d1a2a 0%, #2a0f1a 100%)',
+          borderColor: '#c77d8f',
+          color: '#e8b8c4',
+        }}>
+          <div className="mode-title">🌙 连续值班挑战</div>
+          <div className="mode-desc">
+            {hasSavedShiftGame ? '继续未完成的值班<br />' : '跨多夜维持钟楼运转<br />'}
+            资源管理 · 难度递进 · 暂停保存
           </div>
         </button>
       </div>
