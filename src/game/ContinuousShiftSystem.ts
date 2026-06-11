@@ -253,6 +253,11 @@ export class ContinuousShiftSystem {
     return [...this.state.activeEffects]
   }
 
+  setActiveEffects(effects: ActiveShiftEffect[]): void {
+    this.state.activeEffects = effects.map((e) => ({ ...e }))
+    this.emitStateChange()
+  }
+
   getCombinedEffects() {
     let scoreMultiplier = 1
     let faultResistance = 0

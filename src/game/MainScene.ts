@@ -908,4 +908,550 @@ export class MainScene extends Phaser.Scene {
       this.cameras.main.fadeIn(800, 10, 5, 20)
     })
   }
+
+  private _tourMode: boolean = false
+  private tourHotspotContainers: Map<string, Phaser.GameObjects.Container> = new Map()
+  private tourPathGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map()
+  private tourPathFlowGraphics: Map<string, Phaser.GameObjects.Graphics> = new Map()
+  private tourFlowAnimationTimer: Phaser.Time.TimerEvent | null = null
+  private tourHistoricalLabels: Phaser.GameObjects.Container | null = null
+  private _tourCameraZoom: number = 1
+  private _tourCameraOffset: { x: number; y: number } = { x: 0, y: 0 }
+  private onTourHotspotClick?: (hotspotId: string) => void
+  private tourAmbientOverlay: Phaser.GameObjects.Graphics | null = null
+  private _tourHighlightedHotspotId: string | null = null
+  private _tourHighlightedPathId: string | null = null
+
+  setTourCallbacks(onTourHotspotClick: (hotspotId: string) => void) {
+    this.onTourHotspotClick = onTourHotspotClick
+  }
+
+  enableTourMode(
+    hotspots: Array<{
+      id: string
+      x: number
+      y: number
+      radius?: number
+      icon: string
+      name: string
+      isVisited: boolean
+      isSecret: boolean
+      category: string
+      order: number
+    }>,
+    paths: Array<{
+      id: string
+      points: Array<{ x: number; y: number }>
+      color: string
+      glowColor: string
+    }>,
+  ) {
+    this._tourMode = true
+    this.createTourAmbientOverlay()
+    this.dimOriginalGameElements()
+    this.createTourPaths(paths)
+    this.createTourHotspots(hotspots)
+    this.createTourHistoricalLabels()
+    this.startTourFlowAnimation()
+    this.cameras.main.flash(800, 255, 248, 220)
+  }
+
+  disableTourMode() {
+    void this._tourMode
+    void this._tourCameraZoom
+    void this._tourCameraOffset
+    void this._tourHighlightedHotspotId
+    void this._tourHighlightedPathId
+    this._tourMode = false
+    this.tourHotspotContainers.forEach((c) => c.destroy())
+    this.tourHotspotContainers.clear()
+    this.tourPathGraphics.forEach((g) => g.destroy())
+    this.tourPathGraphics.clear()
+    this.tourPathFlowGraphics.forEach((g) => g.destroy())
+    this.tourPathFlowGraphics.clear()
+    if (this.tourFlowAnimationTimer) {
+      this.tourFlowAnimationTimer.remove()
+      this.tourFlowAnimationTimer = null
+    }
+    if (this.tourHistoricalLabels) {
+      this.tourHistoricalLabels.destroy()
+      this.tourHistoricalLabels = null
+    }
+    if (this.tourAmbientOverlay) {
+      this.tourAmbientOverlay.destroy()
+      this.tourAmbientOverlay = null
+    }
+    this._tourCameraZoom = 1
+    this._tourCameraOffset = { x: 0, y: 0 }
+    this._tourHighlightedHotspotId = null
+    this._tourHighlightedPathId = null
+    this.restoreOriginalGameElements()
+  }
+
+  private dimOriginalGameElements() {
+    this.gearSprites.forEach((container) => {
+      container.iterate((child: unknown) => {
+        const c = child as unknown as { setAlpha?: (a: number) => void; alpha?: number }
+        if (typeof c.setAlpha === 'function' && c.alpha !== undefined) {
+          c.setAlpha(c.alpha * 0.4)
+        }
+      })
+    })
+    ;[this.hourHand, this.minuteHand].forEach((h) => {
+      if (h) h.setAlpha(0.4)
+    })
+  }
+
+  private restoreOriginalGameElements() {
+    this.gearSprites.forEach((container) => {
+      container.iterate((child: unknown) => {
+        const c = child as unknown as { setAlpha?: (a: number) => void; alpha?: number }
+        if (typeof c.setAlpha === 'function' && c.alpha !== undefined) {
+          c.setAlpha(c.alpha / 0.4)
+        }
+      })
+    })
+    ;[this.hourHand, this.minuteHand].forEach((h) => {
+      if (h) h.setAlpha(1)
+    })
+  }
+
+  private createTourAmbientOverlay() {
+    const { width, height } = this.scale
+    this.tourAmbientOverlay = this.add.graphics()
+    this.tourAmbientOverlay.setDepth(18)
+    this.tourAmbientOverlay.fillGradientStyle(
+      0x0a0a28,
+      0x0a0a28,
+      0x1a1a4e,
+      0x1a1a4e,
+      0.55,
+    )
+    this.tourAmbientOverlay.fillRect(0, 0, width, height)
+
+    for (let i = 0; i < 20; i++) {
+      const x = Phaser.Math.Between(0, width)
+      const y = Phaser.Math.Between(0, height)
+      const particle = this.add.circle(x, y, 2 + Math.random() * 3, 0xfff4cc, 0.6)
+      particle.setDepth(19)
+      this.tweens.add({
+        targets: particle,
+        y: y - 50 - Math.random() * 80,
+        x: x + (Math.random() - 0.5) * 40,
+        alpha: { from: 0.6, to: 0 },
+        duration: 4000 + Math.random() * 3000,
+        repeat: -1,
+        ease: Phaser.Math.Easing.Sine.InOut,
+      })
+    }
+  }
+
+  private createTourPaths(
+    paths: Array<{
+      id: string
+      points: Array<{ x: number; y: number }>
+      color: string
+      glowColor: string
+    }>,
+  ) {
+    const { width, height } = this.scale
+
+    paths.forEach((path) => {
+      const pathGraphic = this.add.graphics()
+      pathGraphic.setDepth(22)
+      this.tourPathGraphics.set(path.id, pathGraphic)
+
+      const flowGraphic = this.add.graphics()
+      flowGraphic.setDepth(23)
+      this.tourPathFlowGraphics.set(path.id, flowGraphic)
+
+      const colorNum = Phaser.Display.Color.HexStringToColor(path.color).color
+      const glowColorNum = Phaser.Display.Color.HexStringToColor(path.glowColor).color
+
+      pathGraphic.lineStyle(4, colorNum, 0.7)
+      pathGraphic.beginPath()
+
+      path.points.forEach((point, i) => {
+        const px = point.x * width
+        const py = point.y * height
+        if (i === 0) {
+          pathGraphic.moveTo(px, py)
+        } else {
+          pathGraphic.lineTo(px, py)
+        }
+      })
+      pathGraphic.strokePath()
+
+      pathGraphic.lineStyle(2, glowColorNum, 0.9)
+      pathGraphic.lineStyle(2, glowColorNum, 0.9)
+      pathGraphic.strokePath()
+
+      const glow = this.add.graphics()
+      glow.setDepth(21)
+      glow.lineStyle(12, glowColorNum, 0.15)
+      glow.beginPath()
+      path.points.forEach((point, i) => {
+        const px = point.x * width
+        const py = point.y * height
+        if (i === 0) {
+          glow.moveTo(px, py)
+        } else {
+          glow.lineTo(px, py)
+        }
+      })
+      glow.strokePath()
+    })
+  }
+
+  private startTourFlowAnimation() {
+    let t = 0
+    this.tourFlowAnimationTimer = this.time.addEvent({
+      delay: 50,
+      loop: true,
+      callback: () => {
+        t += 0.015
+        const { width, height } = this.scale
+
+        this.tourPathGraphics.forEach((_pathGraphic, pathId) => {
+          const flow = this.tourPathFlowGraphics.get(pathId)
+          const path = Array.from(this.tourPathGraphics.keys()).findIndex((k) => k === pathId)
+          if (!flow || path < 0) return
+
+          const pathsData = (this.constructor as any)._tourPathsCache
+          if (!pathsData || !pathsData[pathId]) return
+
+          flow.clear()
+          const points = pathsData[pathId]
+          const totalLen = points.length - 1
+          const flowPos = (t * 0.5) % 1
+
+          for (let i = 0; i < totalLen; i++) {
+            const segmentStart = i / totalLen
+            const segmentEnd = (i + 1) / totalLen
+            if (flowPos >= segmentStart && flowPos <= segmentEnd) {
+              const segT = (flowPos - segmentStart) / (segmentEnd - segmentStart)
+              const px =
+                points[i].x * width + (points[i + 1].x - points[i].x) * segT * width
+              const py =
+                points[i].y * height + (points[i + 1].y - points[i].y) * segT * height
+
+              flow.fillStyle(
+                Phaser.Display.Color.HexStringToColor('#ffd700').color,
+                0.8,
+              )
+              flow.fillCircle(px, py, 5)
+              flow.fillStyle(
+                Phaser.Display.Color.HexStringToColor('#fffaeb').color,
+                0.9,
+              )
+              flow.fillCircle(px, py, 2.5)
+              break
+            }
+          }
+        })
+      },
+    })
+  }
+
+  setTourPathsCache(
+    cache: Record<string, Array<{ x: number; y: number }>>,
+  ) {
+    ;(this.constructor as any)._tourPathsCache = cache
+  }
+
+  highlightTourPath(pathId: string | null) {
+    this._tourHighlightedPathId = pathId
+
+    this.tourPathGraphics.forEach((g, id) => {
+      if (id === pathId) {
+        g.setAlpha(1)
+        g.lineStyle(8, 0xffd700, 0.9)
+      } else if (pathId !== null) {
+        g.setAlpha(0.3)
+      } else {
+        g.setAlpha(1)
+      }
+    })
+  }
+
+  private createTourHotspots(
+    hotspots: Array<{
+      id: string
+      x: number
+      y: number
+      radius?: number
+      icon: string
+      name: string
+      isVisited: boolean
+      isSecret: boolean
+      category: string
+      order: number
+    }>,
+  ) {
+    const { width, height } = this.scale
+
+    hotspots.forEach((hs) => {
+      const px = hs.x * width
+      const py = hs.y * height
+      const r = (hs.radius ?? 0.06) * Math.min(width, height)
+
+      const container = this.add.container(px, py)
+      container.setDepth(25)
+      container.setData('hotspotId', hs.id)
+      this.tourHotspotContainers.set(hs.id, container)
+
+      const pulseBase = this.add.circle(0, 0, r * 0.9, 0x000000, 0.01)
+      container.add(pulseBase)
+
+      const bgCircle = this.add.circle(0, 0, r, 0x1a1a3a, 0.85)
+      bgCircle.setStrokeStyle(3, hs.isSecret ? 0xa569bd : hs.isVisited ? 0x7ec97e : 0xc9a96a, 0.95)
+      container.add(bgCircle)
+
+      const iconText = this.add.text(0, 0, hs.icon, {
+        fontSize: `${r * 0.9}px`,
+        align: 'center',
+      }).setOrigin(0.5)
+      container.add(iconText)
+
+      if (!hs.isVisited && !hs.isSecret) {
+        this.tweens.add({
+          targets: bgCircle,
+          scale: { from: 1, to: 1.12 },
+          alpha: { from: 0.85, to: 0.6 },
+          duration: 1200,
+          yoyo: true,
+          repeat: -1,
+          ease: Phaser.Math.Easing.Sine.InOut,
+        })
+      }
+
+      if (hs.isSecret) {
+        const sparkle = this.add.circle(r * 0.6, -r * 0.6, 4, 0xdda0dd, 0.9)
+        container.add(sparkle)
+        this.tweens.add({
+          targets: sparkle,
+          scale: { from: 0.5, to: 1.5 },
+          alpha: { from: 0.9, to: 0 },
+          duration: 1800,
+          repeat: -1,
+          ease: Phaser.Math.Easing.Quadratic.Out,
+        })
+      }
+
+      if (hs.isVisited && !hs.isSecret) {
+        const check = this.add.text(r * 0.65, -r * 0.65, '✓', {
+          fontSize: `${r * 0.5}px`,
+          color: '#7ec97e',
+          fontStyle: 'bold',
+        }).setOrigin(0.5)
+        container.add(check)
+      }
+
+      const nameBg = this.add.graphics()
+      nameBg.fillStyle(0x0a0a20, 0.85)
+      const nameText = this.add.text(0, r + 14, hs.name, {
+        fontFamily: 'Georgia, serif',
+        fontSize: `${12 * this.scaleFactor}px`,
+        color: hs.isSecret ? '#dda0dd' : '#e8d5a3',
+        align: 'center',
+      }).setOrigin(0.5)
+      const w = nameText.width + 20
+      nameBg.fillRoundedRect(-w / 2, r + 4, w, 24, 6)
+      nameBg.lineStyle(1, hs.isSecret ? 0xa569bd : 0x5a4a32, 0.8)
+      nameBg.strokeRoundedRect(-w / 2, r + 4, w, 24, 6)
+      container.add(nameBg)
+      container.add(nameText)
+
+      const orderBadge = this.add.circle(-r * 0.7, -r * 0.7, 10, 0xc9a96a, 0.95)
+      const orderText = this.add.text(-r * 0.7, -r * 0.7, hs.order.toString(), {
+        fontFamily: 'Georgia, serif',
+        fontSize: '11px',
+        color: '#1a1a2e',
+        fontStyle: 'bold',
+      }).setOrigin(0.5)
+      container.add(orderBadge)
+      container.add(orderText)
+
+      const hitArea = this.add.zone(0, 0, r * 2.5, r * 2.5 + 30)
+      hitArea.setInteractive({ useHandCursor: true })
+      container.add(hitArea)
+
+      container.setSize(r * 2.5, r * 2.5 + 30)
+
+      hitArea.on('pointerover', () => {
+        this.tweens.add({
+          targets: container,
+          scale: 1.15,
+          duration: 200,
+          ease: Phaser.Math.Easing.Back.Out,
+        })
+      })
+
+      hitArea.on('pointerout', () => {
+        this.tweens.add({
+          targets: container,
+          scale: 1,
+          duration: 200,
+          ease: Phaser.Math.Easing.Quadratic.Out,
+        })
+      })
+
+      hitArea.on('pointerdown', () => {
+        this.onTourHotspotClick?.(hs.id)
+        this.playTourHotspotClick(container, hs.isSecret ? 0xa569bd : 0xc9a96a)
+      })
+    })
+  }
+
+  private playTourHotspotClick(
+    container: Phaser.GameObjects.Container,
+    color: number,
+  ) {
+    const cx = container.x
+    const cy = container.y
+
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2
+      const dist = 30
+      const spark = this.add.circle(
+        cx + Math.cos(angle) * dist,
+        cy + Math.sin(angle) * dist,
+        3,
+        color,
+        1,
+      )
+      spark.setDepth(60)
+      this.tweens.add({
+        targets: spark,
+        x: cx + Math.cos(angle) * dist * 2.5,
+        y: cy + Math.sin(angle) * dist * 2.5,
+        alpha: { from: 1, to: 0 },
+        scale: { from: 1, to: 0.2 },
+        duration: 400,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onComplete: () => spark.destroy(),
+      })
+    }
+  }
+
+  highlightTourHotspot(hotspotId: string | null) {
+    this._tourHighlightedHotspotId = hotspotId
+
+    this.tourHotspotContainers.forEach((container, id) => {
+      if (id === hotspotId) {
+        this.tweens.add({
+          targets: container,
+          scale: 1.25,
+          duration: 300,
+          ease: Phaser.Math.Easing.Back.Out,
+        })
+        container.setDepth(35)
+      } else {
+        this.tweens.add({
+          targets: container,
+          scale: hotspotId !== null ? 0.85 : 1,
+          alpha: hotspotId !== null ? 0.5 : 1,
+          duration: 250,
+          ease: Phaser.Math.Easing.Quadratic.Out,
+        })
+        container.setDepth(25)
+      }
+    })
+  }
+
+  private createTourHistoricalLabels() {
+    this.tourHistoricalLabels = this.add.container(0, 0)
+    this.tourHistoricalLabels.setDepth(20)
+
+    const labels = [
+      { x: 0.5, y: 0.08, text: '1887 · 维多利亚时代建造', color: '#c9a96a' },
+      { x: 0.5, y: 0.92, text: '时间博物馆 · 对公众开放参观', color: '#c9a96a' },
+    ]
+
+    const { width, height } = this.scale
+    labels.forEach((l) => {
+      const bg = this.add.graphics()
+      const t = this.add.text(l.x * width, l.y * height, l.text, {
+        fontFamily: 'Georgia, serif',
+        fontSize: `${13 * this.scaleFactor}px`,
+        color: l.color,
+        fontStyle: 'italic',
+        align: 'center',
+      }).setOrigin(0.5)
+      const w = t.width + 24
+      const h = 28
+      bg.fillStyle(0x0a0a1a, 0.75)
+      bg.fillRoundedRect(l.x * width - w / 2, l.y * height - h / 2, w, h, 14)
+      bg.lineStyle(1, 0x5a4a32, 0.7)
+      bg.strokeRoundedRect(l.x * width - w / 2, l.y * height - h / 2, w, h, 14)
+      this.tourHistoricalLabels?.add(bg)
+      this.tourHistoricalLabels?.add(t)
+    })
+  }
+
+  setTourCamera(zoom: number, offset: { x: number; y: number }) {
+    this._tourCameraZoom = zoom
+    this._tourCameraOffset = offset
+
+    const { width, height } = this.scale
+    this.cameras.main.setZoom(zoom)
+    this.cameras.main.centerOn(
+      width / 2 + offset.x * width,
+      height / 2 + offset.y * height,
+    )
+  }
+
+  playTourDiscoveryAnimation(position?: { x: number; y: number }) {
+    const { width, height } = this.scale
+    const cx = position ? position.x * width : width / 2
+    const cy = position ? position.y * height : height / 2
+
+    for (let ring = 0; ring < 3; ring++) {
+      this.time.delayedCall(ring * 150, () => {
+        const ringGraphic = this.add.circle(cx, cy, 30, 0xffd700, 0)
+        ringGraphic.setDepth(45)
+        ringGraphic.setStrokeStyle(3, 0xffd700, 0.8)
+        this.tweens.add({
+          targets: ringGraphic,
+          scale: { from: 0.3, to: 3 },
+          strokeAlpha: { from: 0.8, to: 0 },
+          duration: 900,
+          ease: Phaser.Math.Easing.Quadratic.Out,
+          onComplete: () => ringGraphic.destroy(),
+        })
+      })
+    }
+
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2 + Math.random() * 0.3
+      const startDist = 20 + Math.random() * 30
+      const endDist = 120 + Math.random() * 80
+      const spark = this.add.circle(
+        cx + Math.cos(angle) * startDist,
+        cy + Math.sin(angle) * startDist,
+        3 + Math.random() * 3,
+        Math.random() > 0.5 ? 0xffd700 : 0xffa500,
+        1,
+      )
+      spark.setDepth(46)
+      this.tweens.add({
+        targets: spark,
+        x: cx + Math.cos(angle) * endDist,
+        y: cy + Math.sin(angle) * endDist,
+        alpha: { from: 1, to: 0 },
+        scale: { from: 1, to: 0.3 },
+        duration: 700 + Math.random() * 400,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onComplete: () => spark.destroy(),
+      })
+    }
+  }
+
+  resetTourCamera() {
+    this._tourCameraZoom = 1
+    this._tourCameraOffset = { x: 0, y: 0 }
+    this.cameras.main.setZoom(1)
+    const { width, height } = this.scale
+    this.cameras.main.centerOn(width / 2, height / 2)
+  }
 }

@@ -9,8 +9,11 @@ import { StormSystem } from './StormSystem'
 import { workshopSystem } from './WorkshopSystem'
 import { keeperDiarySystem } from './KeeperDiarySystem'
 import { bellChimeEvaluationSystem } from './BellChimeEvaluationSystem'
+import { tourSystem } from './tour/TourSystem'
 import GameHUD from '../ui/GameHUD'
+import TourView from '../ui/TourView'
 import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
+import type { TourState, TourHotspot, TourProgress } from '../types/tour'
 
 interface GameProps {
   onGameEnd: (result: GameResult) => void
@@ -56,6 +59,11 @@ function Game({ onGameEnd, mode }: GameProps) {
   )
   const [stormState, setStormState] = useState<StormState | null>(null)
   const [stormScoreImpact, setStormScoreImpact] = useState(0)
+
+  const [tourActive, setTourActive] = useState(false)
+  const [tourState, setTourState] = useState<TourState | null>(null)
+  const [tourProgress, setTourProgress] = useState<TourProgress | null>(null)
+  const [currentTourHotspot, setCurrentTourHotspot] = useState<TourHotspot | null>(null)
 
   const calculateClassicScore = useCallback((remaining: number, diffMinutes: number) => {
     const diEffects = keeperDiarySystem.getEffects()
@@ -150,7 +158,6 @@ function Game({ onGameEnd, mode }: GameProps) {
 
   const handleGameEnd = useCallback((success: boolean) => {
     if (gameEnded) return
-    setGameEnded(true)
 
     const gs = gearSystemRef.current
     const timer = timerRef.current
@@ -196,6 +203,12 @@ function Game({ onGameEnd, mode }: GameProps) {
           gs.getCurrentTime(),
           diffMinutes,
         )
+
+        if (success && !isPatrolMode) {
+          activateTourMode(scene, gs.getCurrentTime(), finalScore)
+          setGameEnded(true)
+          return
+        }
 
         onGameEnd({
           success,
@@ -245,6 +258,14 @@ function Game({ onGameEnd, mode }: GameProps) {
       diffMinutes,
     )
 
+    if (success) {
+      setTimeout(() => {
+        activateTourMode(scene, gs.getCurrentTime(), finalScore)
+        setGameEnded(true)
+      }, 2500)
+      return
+    }
+
     setTimeout(() => {
       onGameEnd({
         success,
@@ -255,6 +276,171 @@ function Game({ onGameEnd, mode }: GameProps) {
       })
     }, 3000)
   }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode, totalTime])
+
+  const activateTourMode = useCallback(
+    (
+      scene: MainScene | null,
+      calibratedTime: ClockTime,
+      earnedScore: number,
+    ) => {
+      if (!scene) {
+        onGameEnd({
+          success: true,
+          score: earnedScore,
+          timeLeft: 0,
+        })
+        return
+      }
+
+      tourSystem.unlockTour()
+      tourSystem.loadFromStorage()
+      tourSystem.startTour()
+
+      const tourStateNow = tourSystem.getState()
+      tourStateNow.time = calibratedTime
+      setTourState({ ...tourStateNow })
+      setTourProgress(tourSystem.getProgress())
+
+      const hotspotsForScene = tourSystem.getVisibleHotspots().map((h) => ({
+        id: h.id,
+        x: h.x,
+        y: h.y,
+        radius: h.radius,
+        icon: h.icon,
+        name: h.displayName,
+        isVisited: tourStateNow.visitedHotspotIds.includes(h.id),
+        isSecret: !!h.isSecret,
+        category: h.category,
+        order: h.order,
+      }))
+
+      const pathsForScene = tourSystem.getVisiblePaths().map((p) => ({
+        id: p.id,
+        points: p.points,
+        color: p.color,
+        glowColor: p.glowColor,
+      }))
+
+      const pathsCache: Record<string, Array<{ x: number; y: number }>> = {}
+      pathsForScene.forEach((p) => {
+        pathsCache[p.id] = p.points
+      })
+
+      scene.setTourCallbacks((hotspotId: string) => {
+        handleTourHotspotClick(hotspotId)
+      })
+      scene.setTourPathsCache(pathsCache)
+      scene.enableTourMode(hotspotsForScene, pathsForScene)
+
+      setCurrentTourHotspot(null)
+      setTourActive(true)
+      setGameEnded(true)
+
+      soundRef.current?.stopRain()
+      soundRef.current?.stopWind()
+    },
+    [onGameEnd],
+  )
+
+  const handleTourHotspotClick = useCallback((hotspotId: string) => {
+    tourSystem.enterHotspot(hotspotId)
+    const state = tourSystem.getState()
+    setTourState({ ...state })
+    setTourProgress(tourSystem.getProgress())
+
+    const hotspot = tourSystem.getHotspot(hotspotId)
+    if (hotspot) {
+      setCurrentTourHotspot(hotspot)
+      sceneRef.current?.highlightTourHotspot(hotspotId)
+
+      if (hotspot.category === 'exit') {
+        setTimeout(() => {
+          handleExitTour()
+        }, 2000)
+      }
+
+      if (hotspot.connectedHotspotIds) {
+        const relatedPath = tourSystem
+          .getPaths()
+          .find((p) =>
+            p.relatedGearIds.some((gid) =>
+              hotspot.connectedHotspotIds!.some((hid) =>
+                hid.includes(gid.toString()),
+              ),
+            ),
+          )
+        if (relatedPath) {
+          sceneRef.current?.highlightTourPath(relatedPath.id)
+        }
+      }
+
+      if (hotspot.rewardScore && hotspot.rewardScore > 0) {
+        sceneRef.current?.playTourDiscoveryAnimation({
+          x: hotspot.x,
+          y: hotspot.y,
+        })
+      }
+    }
+  }, [])
+
+  const handleExitTour = useCallback(() => {
+    const scene = sceneRef.current
+    if (scene) {
+      scene.disableTourMode()
+      scene.resetTourCamera()
+    }
+
+    const state = tourSystem.getState()
+    tourSystem.endTour()
+
+    const finalResult: GameResult = {
+      success: true,
+      score: state.totalScoreEarned,
+      timeLeft: 0,
+    }
+
+    setTourActive(false)
+    setCurrentTourHotspot(null)
+    onGameEnd(finalResult)
+  }, [onGameEnd])
+
+  const handleTourStateChange = useCallback(() => {
+    setTourState(tourSystem.getState())
+    setTourProgress(tourSystem.getProgress())
+  }, [])
+
+  useEffect(() => {
+    if (!tourActive) return
+
+    tourSystem.getState().time = currentTime
+
+    const hotspots = tourSystem.getVisibleHotspots()
+    const nowState = tourSystem.getState()
+
+    hotspots.forEach((h) => {
+      if (nowState.currentHotspotId === h.id) {
+        const related = tourSystem
+          .getPaths()
+          .filter((p) =>
+            h.connectedHotspotIds?.some((hid) => {
+              const hs = tourSystem.getHotspot(hid)
+              return hs
+                ? p.relatedGearIds.some((gid) =>
+                    h.connectedHotspotIds!.some((id2) =>
+                      tourSystem
+                        .getHotspot(id2)
+                        ?.name.includes(String(gid)),
+                    ),
+                  )
+                : false
+            }),
+          )
+        if (related.length > 0) {
+          sceneRef.current?.highlightTourPath(related[0].id)
+        }
+      }
+    })
+  }, [tourActive, currentTime])
 
   useEffect(() => {
     if (!canvasRef.current) return
@@ -506,30 +692,52 @@ function Game({ onGameEnd, mode }: GameProps) {
   }, [])
 
   const currentObjective = keeperDiarySystem.getCurrentLevelObjective()
+  const allHotspots = tourSystem.getHotspots()
+  const allPaths = tourSystem.getPaths()
+  const allFacts = tourSystem.getFacts()
 
   return (
     <div className="game-container">
       <div ref={canvasRef} className="game-canvas" />
-      <GameHUD
-        timeLeft={timeLeft}
-        totalTime={totalTime}
-        currentTime={formatTimeStr(currentTime)}
-        targetTime={formatTimeStr(targetTime)}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        isPatrolMode={isPatrolMode}
-        period={currentPeriod}
-        periodIndex={periodIndex}
-        totalPeriods={isPatrolMode ? NIGHT_PERIODS.length : 0}
-        weather={weather}
-        faults={faults}
-        score={currentScore}
-        workshopEffects={workshopEffects}
-        stormState={stormState}
-        onRollback={handleRollback}
-        stormScoreImpact={stormScoreImpact}
-        diaryObjective={currentObjective}
-      />
+      {!tourActive && (
+        <GameHUD
+          timeLeft={timeLeft}
+          totalTime={totalTime}
+          currentTime={formatTimeStr(currentTime)}
+          targetTime={formatTimeStr(targetTime)}
+          soundEnabled={soundEnabled}
+          onToggleSound={handleToggleSound}
+          isPatrolMode={isPatrolMode}
+          period={currentPeriod}
+          periodIndex={periodIndex}
+          totalPeriods={isPatrolMode ? NIGHT_PERIODS.length : 0}
+          weather={weather}
+          faults={faults}
+          score={currentScore}
+          workshopEffects={workshopEffects}
+          stormState={stormState}
+          onRollback={handleRollback}
+          stormScoreImpact={stormScoreImpact}
+          diaryObjective={currentObjective}
+        />
+      )}
+      {tourActive && tourState && tourProgress && (
+        <TourView
+          state={tourState}
+          progress={tourProgress}
+          hotspots={allHotspots}
+          paths={allPaths}
+          facts={allFacts}
+          currentHotspot={currentTourHotspot}
+          onHotspotClick={(id) => {
+            handleTourHotspotClick(id)
+          }}
+          onExit={handleExitTour}
+          onAudioStateChange={() => {
+            handleTourStateChange()
+          }}
+        />
+      )}
     </div>
   )
 }

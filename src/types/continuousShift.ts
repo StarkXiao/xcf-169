@@ -2,6 +2,27 @@ import type { ClockTime, PeriodConfig, WeatherState, ActiveGearFault, GearFaultT
 
 export type ShiftResourceType = 'oil' | 'coal' | 'repairKit' | 'coffee' | 'windCharge'
 
+export interface SerializableGearFault {
+  gearId: number
+  type: GearFaultType
+  remainingMs: number
+}
+
+export interface SerializableShiftEffect {
+  id: string
+  type: 'caffeine' | 'wellOiled' | 'overdrive' | 'protected'
+  name: string
+  displayName: string
+  icon: string
+  remainingMs: number
+  effect: {
+    scoreMultiplier?: number
+    faultResistance?: number
+    timeSpeedMultiplier?: number
+    toleranceBonus?: number
+  }
+}
+
 export interface ShiftResource {
   id: ShiftResourceType
   name: string
@@ -294,13 +315,13 @@ export interface ShiftRuntimeSaveData {
   currentTime: ClockTime
   targetTime: ClockTime
   weather: WeatherState
-  faults: ActiveGearFault[]
+  faults: SerializableGearFault[]
   currentScore: number
   deviationAccumulated: number
   deviationSampleCount: number
   resourcesSpentThisNight: Partial<ShiftResourceState>
   nightStartTime: number
-  activeEffects: ActiveShiftEffect[]
+  activeEffects: SerializableShiftEffect[]
   periodConfig: PeriodConfig | null
   gearAngles: { id: number; angle: number }[]
   gearSystemFaults: { id: number; type: GearFaultType }[]

@@ -1,0 +1,1143 @@
+/* =========================================================
+   钟楼探索之旅·游客参观模式 - 主题样式
+   Bell Tower Tour Exploration Mode
+   ========================================================= */
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+  font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  color: #e8dcc0;
+}
+
+.tour-overlay > * {
+  pointer-events: auto;
+}
+
+/* ---------- 顶部栏 ---------- */
+.tour-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(180deg, rgba(10, 10, 18, 0.85) 0%, rgba(10, 10, 18, 0.6) 70%, transparent 100%);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.tour-title-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tour-title-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f4e7c4;
+  text-shadow: 0 0 20px rgba(244, 231, 196, 0.3);
+  letter-spacing: 0.05em;
+}
+
+.tour-title-icon {
+  font-size: 1.6rem;
+  animation: gentlePulse 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.4));
+}
+
+@keyframes gentlePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
+.tour-subtitle {
+  font-size: 0.85rem;
+  color: #b8a97f;
+  margin-top: 0.2rem;
+  font-style: italic;
+  letter-spacing: 0.03em;
+}
+
+/* ---------- 进度面板 ---------- */
+.tour-progress {
+  flex: 1;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: rgba(26, 24, 38, 0.6);
+  border: 1px solid rgba(212, 197, 160, 0.15);
+  border-radius: 10px;
+}
+
+.tour-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: #c9b98f;
+}
+
+.tour-progress-num {
+  font-weight: 600;
+  color: #f0c75e;
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-progress-bar-wrap {
+  width: 100%;
+  height: 8px;
+  background: rgba(212, 197, 160, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(212, 197, 160, 0.1);
+}
+
+.tour-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #b98a3f 0%, #f0c75e 50%, #b98a3f 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 15px rgba(240, 199, 94, 0.5);
+  transition: width 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+  background-size: 200% 100%;
+  animation: progressShine 3s linear infinite;
+}
+
+@keyframes progressShine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------- 积分面板 ---------- */
+.tour-score-panel {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0.6rem 1.2rem;
+  background: linear-gradient(135deg, rgba(185, 138, 63, 0.15) 0%, rgba(240, 199, 94, 0.08) 100%);
+  border: 1px solid rgba(240, 199, 94, 0.25);
+  border-radius: 10px;
+  min-width: 100px;
+}
+
+.tour-score-label {
+  font-size: 0.72rem;
+  color: #c9a96a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.tour-score-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #ffd770;
+  text-shadow: 0 0 20px rgba(255, 215, 112, 0.4);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+/* ---------- 操作按钮行 ---------- */
+.tour-action-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tour-action-btn {
+  padding: 0.55rem 0.9rem;
+  background: rgba(26, 24, 38, 0.7);
+  border: 1px solid rgba(212, 197, 160, 0.2);
+  border-radius: 8px;
+  color: #d4c5a0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tour-action-btn:hover {
+  background: rgba(185, 138, 63, 0.2);
+  border-color: rgba(240, 199, 94, 0.4);
+  color: #f0c75e;
+  transform: translateY(-1px);
+}
+
+.tour-action-btn.active {
+  background: rgba(240, 199, 94, 0.18);
+  border-color: rgba(240, 199, 94, 0.5);
+  color: #ffd770;
+}
+
+.tour-exit-btn {
+  padding: 0.55rem 0.9rem;
+  background: linear-gradient(135deg, rgba(180, 70, 70, 0.3) 0%, rgba(150, 50, 50, 0.2) 100%);
+  border: 1px solid rgba(220, 120, 120, 0.4);
+  border-radius: 8px;
+  color: #f0c0b0;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tour-exit-btn:hover {
+  background: linear-gradient(135deg, rgba(200, 80, 80, 0.45) 0%, rgba(170, 60, 60, 0.35) 100%);
+  border-color: rgba(240, 140, 140, 0.6);
+  color: #ffe0d0;
+  transform: translateY(-1px);
+}
+
+/* ---------- 侧边面板 ---------- */
+.tour-side-panels {
+  position: absolute;
+  top: 6rem;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.tour-side-panels > * {
+  pointer-events: auto;
+}
+
+.tour-hotspot-list,
+.tour-facts-panel {
+  position: absolute;
+  top: 1rem;
+  width: 300px;
+  max-height: calc(100vh - 28rem);
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, rgba(15, 14, 22, 0.92) 0%, rgba(22, 20, 32, 0.9) 100%);
+  border: 1px solid rgba(212, 197, 160, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  pointer-events: none;
+}
+
+.tour-hotspot-list {
+  left: 1.5rem;
+}
+
+.tour-facts-panel {
+  right: 1.5rem;
+  transform: translateX(20px);
+}
+
+.tour-hotspot-list.visible,
+.tour-facts-panel.visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.tour-hotspot-list.pulse,
+.tour-facts-panel.pulse {
+  animation: panelPulse 0.5s ease;
+}
+
+@keyframes panelPulse {
+  0%, 100% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); }
+  50% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 40px rgba(240, 199, 94, 0.25); }
+}
+
+.tour-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1.1rem;
+  background: rgba(185, 138, 63, 0.1);
+  border-bottom: 1px solid rgba(212, 197, 160, 0.12);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #f0c75e;
+}
+
+.tour-panel-close {
+  background: none;
+  border: none;
+  color: #a89a75;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.tour-panel-close:hover {
+  background: rgba(212, 197, 160, 0.1);
+  color: #f4e7c4;
+}
+
+.tour-hotspot-scroll,
+.tour-facts-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tour-hotspot-scroll::-webkit-scrollbar,
+.tour-facts-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tour-hotspot-scroll::-webkit-scrollbar-thumb,
+.tour-facts-scroll::-webkit-scrollbar-thumb {
+  background: rgba(185, 138, 63, 0.3);
+  border-radius: 999px;
+}
+
+.tour-hotspot-scroll::-webkit-scrollbar-track,
+.tour-facts-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 景点列表项 ---------- */
+.tour-hotspot-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  background: rgba(212, 197, 160, 0.04);
+  border: 1px solid rgba(212, 197, 160, 0.1);
+  border-radius: 8px;
+  color: #d4c5a0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tour-hotspot-item:hover:not(.locked) {
+  background: rgba(185, 138, 63, 0.12);
+  border-color: rgba(240, 199, 94, 0.3);
+  transform: translateX(4px);
+}
+
+.tour-hotspot-item.current {
+  background: rgba(240, 199, 94, 0.15);
+  border-color: rgba(240, 199, 94, 0.5);
+  box-shadow: 0 0 20px rgba(240, 199, 94, 0.15);
+}
+
+.tour-hotspot-item.visited {
+  background: rgba(126, 201, 126, 0.08);
+  border-color: rgba(126, 201, 126, 0.2);
+}
+
+.tour-hotspot-item.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.tour-hotspot-item-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 34px;
+}
+
+.tour-hotspot-order {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #8a7e5c;
+  background: rgba(212, 197, 160, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+.tour-hotspot-item.visited .tour-hotspot-order {
+  color: #7ec97e;
+  background: rgba(126, 201, 126, 0.12);
+}
+
+.tour-hotspot-icon {
+  font-size: 1.3rem;
+}
+
+.tour-hotspot-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tour-hotspot-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #e8dcc0;
+  margin-bottom: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tour-hotspot-item.current .tour-hotspot-name {
+  color: #ffd770;
+}
+
+.tour-hotspot-cat {
+  font-size: 0.72rem;
+  color: #8a7e5c;
+}
+
+.tour-hotspot-check {
+  font-size: 0.95rem;
+  color: #7ec97e;
+  font-weight: 700;
+}
+
+/* ---------- 历史札记卡片 ---------- */
+.tour-fact-card {
+  padding: 0.85rem 0.95rem;
+  background: rgba(212, 197, 160, 0.04);
+  border: 1px solid rgba(212, 197, 160, 0.12);
+  border-radius: 10px;
+  transition: all 0.25s ease;
+}
+
+.tour-fact-card.unlocked {
+  background: linear-gradient(135deg, rgba(185, 138, 63, 0.08) 0%, rgba(240, 199, 94, 0.04) 100%);
+  border-color: rgba(240, 199, 94, 0.2);
+}
+
+.tour-fact-year {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b98a3f;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.tour-fact-card.unlocked .tour-fact-year {
+  color: #f0c75e;
+}
+
+.tour-fact-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #d4c5a0;
+  margin-bottom: 0.45rem;
+}
+
+.tour-fact-card.unlocked .tour-fact-title {
+  color: #f4e7c4;
+}
+
+.tour-fact-content {
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: #b8a97f;
+}
+
+.tour-fact-locked {
+  font-size: 0.8rem;
+  color: #6a5f48;
+  font-style: italic;
+  padding: 0.4rem 0;
+}
+
+.tour-fact-source {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: #7a6f55;
+  font-style: italic;
+  text-align: right;
+  padding-top: 0.4rem;
+  border-top: 1px dashed rgba(212, 197, 160, 0.1);
+}
+
+/* ---------- 底部区域 ---------- */
+.tour-bottom-area {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: linear-gradient(0deg, rgba(10, 10, 18, 0.92) 0%, rgba(10, 10, 18, 0.7) 60%, transparent 100%);
+  backdrop-filter: blur(6px);
+  z-index: 5;
+}
+
+/* ---------- 景点详情卡 ---------- */
+.tour-hotspot-detail {
+  background: linear-gradient(135deg, rgba(15, 14, 22, 0.94) 0%, rgba(22, 20, 32, 0.92) 100%);
+  border: 1px solid rgba(240, 199, 94, 0.25);
+  border-radius: 14px;
+  padding: 1.2rem 1.4rem;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 60px rgba(240, 199, 94, 0.06);
+  max-width: 720px;
+  margin: 0 auto;
+  animation: detailSlide 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@keyframes detailSlide {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tour-hotspot-detail.slide-in {
+  animation: detailSlide 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.tour-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.tour-detail-cat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  background: rgba(185, 138, 63, 0.15);
+  border: 1px solid rgba(240, 199, 94, 0.3);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: #f0c75e;
+  font-weight: 500;
+}
+
+.tour-detail-index {
+  opacity: 0.7;
+  font-size: 0.75rem;
+  color: #c9b98f;
+}
+
+.tour-detail-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tour-nav-btn {
+  padding: 0.4rem 0.8rem;
+  background: rgba(212, 197, 160, 0.06);
+  border: 1px solid rgba(212, 197, 160, 0.18);
+  border-radius: 6px;
+  color: #c9b98f;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tour-nav-btn:hover:not(:disabled) {
+  background: rgba(185, 138, 63, 0.15);
+  border-color: rgba(240, 199, 94, 0.35);
+  color: #f0c75e;
+}
+
+.tour-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tour-nav-btn.primary {
+  background: rgba(240, 199, 94, 0.15);
+  border-color: rgba(240, 199, 94, 0.4);
+  color: #ffd770;
+}
+
+.tour-nav-btn.primary:hover:not(:disabled) {
+  background: rgba(240, 199, 94, 0.25);
+  border-color: rgba(255, 215, 112, 0.6);
+}
+
+.tour-detail-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.tour-detail-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f4e7c4;
+  margin: 0;
+  letter-spacing: 0.03em;
+  text-shadow: 0 0 25px rgba(244, 231, 196, 0.25);
+}
+
+.tour-detail-reward {
+  padding: 0.2rem 0.6rem;
+  background: linear-gradient(135deg, #b98a3f, #f0c75e);
+  color: #1a1a2e;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  animation: rewardPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes rewardPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 10px rgba(240, 199, 94, 0.3); }
+  50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(240, 199, 94, 0.5); }
+}
+
+.tour-detail-description {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: #d4c5a0;
+  margin-bottom: 0.9rem;
+}
+
+.tour-detail-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.tour-detail-tab-content {
+  padding: 0.75rem 1rem;
+  background: rgba(212, 197, 160, 0.04);
+  border-left: 3px solid rgba(240, 199, 94, 0.35);
+  border-radius: 0 6px 6px 0;
+}
+
+.tour-detail-tab-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #c9a96a;
+  margin-bottom: 0.35rem;
+  letter-spacing: 0.04em;
+}
+
+.tour-detail-note {
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #b8a97f;
+  margin: 0;
+}
+
+/* ---------- 相关景点 ---------- */
+.tour-detail-nearby {
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(212, 197, 160, 0.1);
+}
+
+.tour-nearby-row {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tour-nearby-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: rgba(212, 197, 160, 0.06);
+  border: 1px solid rgba(212, 197, 160, 0.18);
+  border-radius: 8px;
+  color: #c9b98f;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tour-nearby-item:hover {
+  background: rgba(185, 138, 63, 0.15);
+  border-color: rgba(240, 199, 94, 0.35);
+  color: #f0c75e;
+  transform: translateY(-1px);
+}
+
+.tour-nearby-item.visited {
+  background: rgba(126, 201, 126, 0.08);
+  border-color: rgba(126, 201, 126, 0.25);
+  color: #a8d9a8;
+}
+
+.tour-nearby-icon {
+  font-size: 0.95rem;
+}
+
+/* ---------- 结束参观面板 ---------- */
+.tour-exit-panel {
+  text-align: center;
+  padding: 1.6rem 1.8rem;
+}
+
+.tour-exit-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.tour-exit-icon {
+  font-size: 2rem;
+  animation: gentlePulse 2s ease-in-out infinite;
+}
+
+.tour-exit-title h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #f4e7c4;
+  margin: 0;
+}
+
+.tour-exit-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tour-exit-stat {
+  padding: 0.8rem 0.5rem;
+  background: rgba(212, 197, 160, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(212, 197, 160, 0.12);
+}
+
+.tour-exit-stat-label {
+  font-size: 0.72rem;
+  color: #8a7e5c;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tour-exit-stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #f0c75e;
+  font-variant-numeric: tabular-nums;
+}
+
+.tour-exit-complete {
+  font-size: 1rem;
+  padding: 0.8rem 1rem;
+  background: rgba(185, 138, 63, 0.1);
+  border-radius: 10px;
+  margin-bottom: 1.1rem;
+  color: #e8dcc0;
+}
+
+.tour-exit-final-btn {
+  width: 100%;
+  padding: 0.9rem 1.2rem;
+  background: linear-gradient(135deg, #b98a3f 0%, #f0c75e 50%, #b98a3f 100%);
+  background-size: 200% 100%;
+  border: none;
+  border-radius: 10px;
+  color: #1a1a2e;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  animation: exitBtnShine 4s linear infinite;
+  letter-spacing: 0.05em;
+}
+
+@keyframes exitBtnShine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.tour-exit-final-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(240, 199, 94, 0.4);
+}
+
+/* ---------- 音频播放器 ---------- */
+.tour-audio-player {
+  background: linear-gradient(135deg, rgba(22, 20, 32, 0.92) 0%, rgba(15, 14, 22, 0.9) 100%);
+  border: 1px solid rgba(126, 170, 220, 0.2);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  max-width: 720px;
+  margin: 0 auto;
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45);
+  transition: all 0.3s ease;
+}
+
+.tour-audio-player.glow {
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.45), 0 0 40px rgba(126, 170, 220, 0.2);
+}
+
+.tour-audio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.tour-audio-track-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.tour-audio-icon {
+  font-size: 1.3rem;
+}
+
+.tour-audio-icon + .tour-audio-track-name::before {
+  content: none;
+}
+
+.tour-audio-track-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #c9d9ef;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tour-audio-ambient-toggle {
+  flex-shrink: 0;
+}
+
+.tour-ambient-btn {
+  padding: 0.35rem 0.6rem;
+  background: rgba(212, 197, 160, 0.06);
+  border: 1px solid rgba(212, 197, 160, 0.18);
+  border-radius: 6px;
+  color: #8a7e5c;
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tour-ambient-btn.active {
+  background: rgba(126, 170, 220, 0.12);
+  border-color: rgba(126, 170, 220, 0.35);
+  color: #a8c4e4;
+}
+
+/* ---------- 解说按钮 ---------- */
+.tour-audio-narration-row {
+  margin-bottom: 0.7rem;
+}
+
+.tour-narration-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: linear-gradient(135deg, rgba(126, 170, 220, 0.12) 0%, rgba(100, 150, 210, 0.08) 100%);
+  border: 1px solid rgba(126, 170, 220, 0.3);
+  border-radius: 8px;
+  color: #b8d0ec;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tour-narration-btn:hover {
+  background: linear-gradient(135deg, rgba(126, 170, 220, 0.2) 0%, rgba(100, 150, 210, 0.15) 100%);
+  border-color: rgba(146, 190, 240, 0.5);
+  color: #d0e4ff;
+  transform: translateY(-1px);
+}
+
+/* ---------- 音频进度 ---------- */
+.tour-audio-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.tour-audio-time {
+  font-size: 0.75rem;
+  color: #7a8ea6;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+}
+
+.tour-audio-seek {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  background: rgba(126, 170, 220, 0.12);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  border: 1px solid rgba(126, 170, 220, 0.1);
+}
+
+.tour-audio-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #7eaadc, #c4dfff);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(126, 170, 220, 0.5);
+  transition: transform 0.15s ease;
+}
+
+.tour-audio-seek::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.tour-audio-seek::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #7eaadc, #c4dfff);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(126, 170, 220, 0.5);
+}
+
+/* ---------- 音频控件 ---------- */
+.tour-audio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+  margin-bottom: 0.7rem;
+}
+
+.tour-audio-control-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(212, 197, 160, 0.06);
+  border: 1px solid rgba(212, 197, 160, 0.18);
+  border-radius: 50%;
+  color: #a8b8cc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tour-audio-control-btn:hover {
+  background: rgba(126, 170, 220, 0.12);
+  border-color: rgba(126, 170, 220, 0.35);
+  color: #c4dfff;
+}
+
+.tour-audio-play-btn {
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5a8bc4 0%, #7eaadc 100%);
+  border: none;
+  border-radius: 50%;
+  color: #0a0a12;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(126, 170, 220, 0.35);
+  padding-left: 4px;
+}
+
+.tour-audio-play-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 22px rgba(126, 170, 220, 0.5);
+}
+
+.tour-audio-volume {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  padding-left: 0.8rem;
+  border-left: 1px solid rgba(212, 197, 160, 0.1);
+}
+
+.tour-audio-volume > span {
+  font-size: 0.9rem;
+}
+
+.tour-audio-volume input[type='range'] {
+  width: 80px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(212, 197, 160, 0.1);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.tour-audio-volume input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  background: #a8b8cc;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tour-audio-volume input[type='range']::-webkit-slider-thumb:hover {
+  background: #c4dfff;
+  transform: scale(1.2);
+}
+
+/* ---------- 解说文字 ---------- */
+.tour-audio-transcript {
+  padding: 0.7rem 0.9rem;
+  background: rgba(126, 170, 220, 0.06);
+  border-left: 3px solid rgba(126, 170, 220, 0.3);
+  border-radius: 0 6px 6px 0;
+  margin-top: 0.4rem;
+}
+
+.tour-transcript-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7eaadc;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.04em;
+}
+
+.tour-transcript-text {
+  font-size: 0.82rem;
+  line-height: 1.7;
+  color: #a8b8cc;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ---------- 响应式适配 ---------- */
+@media (max-width: 900px) {
+  .tour-top-bar {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .tour-progress {
+    max-width: 100%;
+    order: 10;
+    flex: 1 0 100%;
+  }
+
+  .tour-hotspot-list,
+  .tour-facts-panel {
+    width: calc(100vw - 3rem);
+    max-height: 55vh;
+    top: auto;
+    bottom: 1rem;
+    left: 1.5rem;
+    right: 1.5rem;
+  }
+
+  .tour-facts-panel {
+    transform: translateY(20px);
+  }
+
+  .tour-facts-panel.visible {
+    transform: translateY(0);
+  }
+
+  .tour-bottom-area {
+    padding: 0.7rem 0.8rem 1rem;
+  }
+
+  .tour-detail-title {
+    font-size: 1.2rem;
+  }
+
+  .tour-exit-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .tour-exit-stat-value {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .tour-title-main {
+    font-size: 1.05rem;
+  }
+
+  .tour-score-panel {
+    min-width: 80px;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .tour-score-value {
+    font-size: 1.15rem;
+  }
+
+  .tour-action-btn,
+  .tour-exit-btn {
+    padding: 0.45rem 0.65rem;
+    font-size: 0.78rem;
+  }
+
+  .tour-action-row {
+    gap: 0.35rem;
+    flex-wrap: wrap;
+  }
+
+  .tour-hotspot-detail,
+  .tour-audio-player {
+    padding: 0.85rem 1rem;
+  }
+
+  .tour-detail-nav {
+    gap: 0.3rem;
+  }
+
+  .tour-nav-btn {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .tour-audio-volume {
+    display: none;
+  }
+}

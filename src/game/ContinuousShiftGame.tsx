@@ -22,6 +22,8 @@ import type {
   ShiftResourceType,
   ActiveShiftEffect,
   ShiftRuntimeSaveData,
+  SerializableGearFault,
+  SerializableShiftEffect,
 } from '../types/continuousShift'
 import type {
   ClockTime,
@@ -268,6 +270,28 @@ function ContinuousShiftGame({
 
   const collectRuntimeSaveData = useCallback((): ShiftRuntimeSaveData => {
     const gearSnapshot = gearSystemRef.current?.getFullStateSnapshot()
+    const now = performance.now()
+
+    const serializableFaults: SerializableGearFault[] = faults
+      .map((f) => ({
+        gearId: f.gearId,
+        type: f.type,
+        remainingMs: Math.max(0, f.expiresAt - now),
+      }))
+      .filter((f) => f.remainingMs > 0)
+
+    const serializableEffects: SerializableShiftEffect[] = activeEffects
+      .map((e) => ({
+        id: e.id,
+        type: e.type,
+        name: e.name,
+        displayName: e.displayName,
+        icon: e.icon,
+        remainingMs: Math.max(0, e.expiresAt - now),
+        effect: { ...e.effect },
+      }))
+      .filter((e) => e.remainingMs > 0)
+
     return {
       periodIndex,
       totalTime,
@@ -275,13 +299,13 @@ function ContinuousShiftGame({
       currentTime: { ...currentTime },
       targetTime: { ...targetTime },
       weather: { ...weather },
-      faults: [...faults],
+      faults: serializableFaults,
       currentScore,
       deviationAccumulated: deviationAccumulatorRef.current || 0,
       deviationSampleCount: deviationSampleCountRef.current || 0,
       resourcesSpentThisNight: { ...resourcesSpentThisNightRef.current },
       nightStartTime: nightStartTimeRef.current || Date.now(),
-      activeEffects: [...activeEffects],
+      activeEffects: serializableEffects,
       periodConfig: currentPeriod,
       gearAngles: gearSnapshot?.gearAngles || [],
       gearSystemFaults: gearSnapshot?.faults || [],
@@ -417,6 +441,8 @@ function ContinuousShiftGame({
 
     let loadedRuntimeData: ShiftRuntimeSaveData | null = null
     let loadedSuccessfully = false
+    let restoredFaults: ActiveGearFault[] = []
+    let restoredEffects: ActiveShiftEffect[] = []
 
     if (loadSaved) {
       const loaded = shift.loadFromStorage()
@@ -425,15 +451,37 @@ function ContinuousShiftGame({
         loadedSuccessfully = true
 
         const rt = loadedRuntimeData
+        const now = performance.now()
+
+        restoredFaults = rt.faults
+          .filter((f) => f.remainingMs > 0)
+          .map((f) => ({
+            gearId: f.gearId,
+            type: f.type,
+            expiresAt: now + f.remainingMs,
+          }))
+
+        restoredEffects = rt.activeEffects
+          .filter((e) => e.remainingMs > 0)
+          .map((e) => ({
+            id: e.id,
+            type: e.type,
+            name: e.name,
+            displayName: e.displayName,
+            icon: e.icon,
+            expiresAt: now + e.remainingMs,
+            effect: { ...e.effect },
+          }))
+
         setPeriodIndex(rt.periodIndex)
         setTotalTime(rt.totalTime)
         setTimeLeft(rt.timeLeft)
         setCurrentTime({ ...rt.currentTime })
         setTargetTime({ ...rt.targetTime })
         setWeather({ ...rt.weather })
-        setFaults([...rt.faults])
+        setFaults(restoredFaults)
         setCurrentScore(rt.currentScore)
-        setActiveEffects([...rt.activeEffects])
+        setActiveEffects(restoredEffects)
         if (rt.periodConfig) {
           setCurrentPeriod(rt.periodConfig)
         }
@@ -611,6 +659,7 @@ function ContinuousShiftGame({
 
         if (loadSaved && loadedSuccessfully && loadedRuntimeData) {
           const rt = loadedRuntimeData
+          const now = performance.now()
 
           gearSystem.restoreFullState(
             rt.currentTime,
@@ -620,7 +669,28 @@ function ContinuousShiftGame({
           )
 
           patrol.setCurrentPeriodIndex(rt.periodIndex)
-          patrol.restoreActiveFaults(rt.faults)
+
+          const activeFaultsForPatrol: ActiveGearFault[] = rt.faults
+            .filter((f) => f.remainingMs > 0)
+            .map((f) => ({
+              gearId: f.gearId,
+              type: f.type,
+              expiresAt: now + f.remainingMs,
+            }))
+          patrol.restoreActiveFaults(activeFaultsForPatrol)
+
+          const activeEffectsForSystem: ActiveShiftEffect[] = rt.activeEffects
+            .filter((e) => e.remainingMs > 0)
+            .map((e) => ({
+              id: e.id,
+              type: e.type,
+              name: e.name,
+              displayName: e.displayName,
+              icon: e.icon,
+              expiresAt: now + e.remainingMs,
+              effect: { ...e.effect },
+            }))
+          shiftSystemRef.current?.setActiveEffects(activeEffectsForSystem)
 
           timer.reset(rt.totalTime)
           timer.subtractTime(rt.totalTime - rt.timeLeft)
@@ -632,8 +702,8 @@ function ContinuousShiftGame({
             scene.updateGearAngle(id, angle)
           })
 
-          const restoredFaults = patrol.getActiveFaults().filter(f => f.expiresAt > performance.now())
-          restoredFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+          const restoredFaultsNow = patrol.getActiveFaults().filter(f => f.expiresAt > performance.now())
+          restoredFaultsNow.forEach((f) => scene.setGearFault(f.gearId, f.type))
           rt.gearSystemFaults.forEach(({ id, type }) => {
             if (type !== 'none') scene.setGearFault(id, type)
           })
