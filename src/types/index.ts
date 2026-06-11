@@ -76,7 +76,7 @@ export interface DifficultyConfig {
   maxActiveFaults: number
   repairTimeMultiplier: number
   timeLimitMultiplier: number
-  hintEnabled: boolean
+  hintLevel: number
   tutorialEnabled: boolean
 }
 
@@ -85,6 +85,7 @@ export interface GearFaultHint {
   faultType: GearFaultType
   severity: 'low' | 'medium' | 'high'
   hintText: string
+  recommendedTool?: RepairToolType
 }
 
 export type FaultSoundType = 'jam_occur' | 'slip_occur' | 'reverse_occur' | 'freeze_occur' | 'repair_start' | 'repair_success' | 'repair_fail' | 'inspect'

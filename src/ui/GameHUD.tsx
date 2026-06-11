@@ -366,16 +366,24 @@ function GameHUD({
       {faultHints.length > 0 && (
         <div className="fault-hints-panel">
           <div className="fault-hints-title">💡 故障提示</div>
-          {faultHints.map((hint, i) => (
-            <div
-              key={i}
-              className={`fault-hint-item severity-${hint.severity}`}
-              style={{ borderLeftColor: getFaultColor(hint.faultType) }}
-            >
-              <span className="hint-gear">齿轮#{hint.gearId}</span>
-              <span className="hint-text">{hint.hintText}</span>
-            </div>
-          ))}
+          {faultHints.map((hint, i) => {
+            const toolConfig = REPAIR_TOOLS.find((t) => t.id === hint.recommendedTool)
+            return (
+              <div
+                key={i}
+                className={`fault-hint-item severity-${hint.severity}`}
+                style={{ borderLeftColor: getFaultColor(hint.faultType) }}
+              >
+                <span className="hint-gear">齿轮#{hint.gearId}</span>
+                <span className="hint-text">{hint.hintText}</span>
+                {hint.recommendedTool && toolConfig && (
+                  <span className="hint-tool-recommend">
+                    推荐：{toolConfig.icon} {toolConfig.displayName}
+                  </span>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 

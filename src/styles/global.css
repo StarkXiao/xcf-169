@@ -750,6 +750,15 @@ html, body, #root {
   line-height: 1.4;
 }
 
+.hint-tool-recommend {
+  display: block;
+  font-size: 0.65rem;
+  color: #7ec97e;
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgba(126, 201, 126, 0.2);
+}
+
 .hint-panel {
   position: absolute;
   bottom: 1.5rem;

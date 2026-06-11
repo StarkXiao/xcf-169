@@ -5,7 +5,7 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     id: 'easy',
     name: 'easy',
     displayName: '简单',
-    description: '适合新手，故障较少且持续时间短，提示功能全开。',
+    description: '适合新手，故障较少且持续时间短，完整提示与工具推荐。',
     scoreMultiplier: 0.7,
     faultFrequency: 0.4,
     faultDurationMultiplier: 0.6,
@@ -13,14 +13,14 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     maxActiveFaults: 1,
     repairTimeMultiplier: 0.7,
     timeLimitMultiplier: 1.3,
-    hintEnabled: true,
+    hintLevel: 3,
     tutorialEnabled: true,
   },
   {
     id: 'normal',
     name: 'normal',
     displayName: '普通',
-    description: '标准难度，均衡的故障频率和持续时间。',
+    description: '标准难度，基础提示和故障描述。',
     scoreMultiplier: 1.0,
     faultFrequency: 1.0,
     faultDurationMultiplier: 1.0,
@@ -28,14 +28,14 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     maxActiveFaults: 2,
     repairTimeMultiplier: 1.0,
     timeLimitMultiplier: 1.0,
-    hintEnabled: true,
+    hintLevel: 2,
     tutorialEnabled: false,
   },
   {
     id: 'hard',
     name: 'hard',
     displayName: '困难',
-    description: '故障频发，需要熟练的检修技巧。',
+    description: '故障频发，仅显示故障类型，无工具推荐。',
     scoreMultiplier: 1.5,
     faultFrequency: 1.6,
     faultDurationMultiplier: 1.4,
@@ -43,14 +43,14 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     maxActiveFaults: 3,
     repairTimeMultiplier: 1.3,
     timeLimitMultiplier: 0.85,
-    hintEnabled: false,
+    hintLevel: 1,
     tutorialEnabled: false,
   },
   {
     id: 'expert',
     name: 'expert',
     displayName: '专家',
-    description: '高强度故障，考验你的反应和策略能力。',
+    description: '高强度故障，无提示，考验你的判断力。',
     scoreMultiplier: 2.2,
     faultFrequency: 2.2,
     faultDurationMultiplier: 1.8,
@@ -58,14 +58,14 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     maxActiveFaults: 4,
     repairTimeMultiplier: 1.6,
     timeLimitMultiplier: 0.7,
-    hintEnabled: false,
+    hintLevel: 0,
     tutorialEnabled: false,
   },
   {
     id: 'nightmare',
     name: 'nightmare',
     displayName: '噩梦',
-    description: '极限挑战，只有真正的守钟人才能生存。',
+    description: '极限挑战，无提示，只有真正的守钟人才能生存。',
     scoreMultiplier: 3.5,
     faultFrequency: 3.0,
     faultDurationMultiplier: 2.5,
@@ -73,7 +73,7 @@ export const DIFFICULTY_CONFIGS: DifficultyConfig[] = [
     maxActiveFaults: 5,
     repairTimeMultiplier: 2.0,
     timeLimitMultiplier: 0.55,
-    hintEnabled: false,
+    hintLevel: 0,
     tutorialEnabled: false,
   },
 ]
@@ -157,7 +157,11 @@ export class DifficultySystem {
   }
 
   isHintEnabled(): boolean {
-    return this.getCurrentDifficulty().hintEnabled
+    return this.getCurrentDifficulty().hintLevel > 0
+  }
+
+  getHintLevel(): number {
+    return this.getCurrentDifficulty().hintLevel
   }
 
   adjustRepairTime(baseTimeMs: number): number {

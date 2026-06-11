@@ -136,6 +136,7 @@ export class GearFaultSystem {
 
   setDifficulty(level: DifficultyLevel): void {
     this.difficulty.setDifficulty(level)
+    this.updateHints()
   }
 
   setCallbacks(callbacks: GearFaultCallbacks): void {
@@ -354,6 +355,9 @@ export class GearFaultSystem {
 
   getFaultHints(): GearFaultHint[] {
     const hints: GearFaultHint[] = []
+    const hintLevel = this.difficulty.getHintLevel()
+
+    if (hintLevel === 0) return hints
 
     this.activeFaults.forEach((fault) => {
       const hintTexts = FAULT_HINTS[fault.type]
@@ -367,21 +371,32 @@ export class GearFaultSystem {
 
       const hintIndex = Math.min(Math.floor(progress * hintTexts.length), hintTexts.length - 1)
 
-      hints.push({
+      const hint: GearFaultHint = {
         gearId: fault.gearId,
         faultType: fault.type,
         severity,
         hintText: hintTexts[hintIndex],
-      })
+      }
+
+      if (hintLevel >= 3) {
+        const bestTool = REPAIR_TOOLS.find((t) =>
+          t.effectiveFaults.includes(fault.type) && t.successRate >= 0.85,
+        )
+        hint.recommendedTool = bestTool?.id
+      }
+
+      if (hintLevel === 1) {
+        hint.hintText = FAULT_DESCRIPTIONS[fault.type]
+      }
+
+      hints.push(hint)
     })
 
     return hints
   }
 
   private updateHints(): void {
-    if (this.difficulty.isHintEnabled()) {
-      this.callbacks.onHintGenerated?.(this.getFaultHints())
-    }
+    this.callbacks.onHintGenerated?.(this.getFaultHints())
   }
 
   getFaultEffect(gearId: number, direction: 1 | -1): {

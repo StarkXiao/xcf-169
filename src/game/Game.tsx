@@ -38,8 +38,10 @@ function Game({ onGameEnd, mode }: GameProps) {
 
   const isPatrolMode = mode === 'patrol'
 
-  const [timeLeft, setTimeLeft] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME)
-  const [totalTime, setTotalTime] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME)
+  const adjustedTotalTime = difficultySystem.adjustTimeLimit(TOTAL_TIME)
+
+  const [timeLeft, setTimeLeft] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : adjustedTotalTime)
+  const [totalTime, setTotalTime] = useState(isPatrolMode ? NIGHT_PERIODS[0].duration : adjustedTotalTime)
   const [currentTime, setCurrentTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
   const [targetTime, setTargetTime] = useState<ClockTime>({ hours: 12, minutes: 0 })
   const [soundEnabled, setSoundEnabled] = useState(true)
@@ -81,7 +83,8 @@ function Game({ onGameEnd, mode }: GameProps) {
     const timeBonus = Math.floor(remaining * 5 * diEffects.timeBonusMultiplier)
     const perfectBonus = diffMinutes === 0 ? 1000 : 0
     const baseScore = accuracyBonus + timeBonus + perfectBonus
-    return Math.floor(baseScore * diEffects.scoreMultiplier)
+    const difficultyMultiplier = difficultySystem.getScoreMultiplier()
+    return Math.floor(baseScore * diEffects.scoreMultiplier * difficultyMultiplier)
   }, [])
 
   const handlePeriodComplete = useCallback(() => {
@@ -548,7 +551,7 @@ function Game({ onGameEnd, mode }: GameProps) {
     )
     storm.setCurrentTimeAccessor(() => gearSystem.getCurrentTime())
 
-    const initialDuration = isPatrolMode ? NIGHT_PERIODS[0].duration : TOTAL_TIME
+    const initialDuration = isPatrolMode ? NIGHT_PERIODS[0].duration : difficultySystem.adjustTimeLimit(TOTAL_TIME)
     const timer = new TimerSystem(initialDuration, {
       onTick: (t) => setTimeLeft(Math.ceil(t)),
       onWarning: () => sound.playTick(),
@@ -629,6 +632,7 @@ function Game({ onGameEnd, mode }: GameProps) {
       onFaultSpawned: (fault: ActiveGearFault) => {
         bellChimeEvaluationSystem.recordAction({ type: 'fault_occur', gearId: fault.gearId, result: 'failure' })
         scene.setGearFault(fault.gearId, fault.type)
+        gearSystem.setGearFault(fault.gearId, fault.type)
         sound.playGearFaultByType(fault.type)
         scene.startFaultPulse(fault.gearId)
         setFaults(faultSystem.getActiveFaults())
@@ -636,6 +640,7 @@ function Game({ onGameEnd, mode }: GameProps) {
       onFaultExpired: (fault: ActiveGearFault) => {
         scene.setGearFault(fault.gearId, 'none')
         scene.stopFaultPulse(fault.gearId)
+        gearSystem.setGearFault(fault.gearId, 'none')
         setFaults(faultSystem.getActiveFaults())
       },
       onRepairStart: (_repair: ActiveRepair) => {
@@ -653,6 +658,7 @@ function Game({ onGameEnd, mode }: GameProps) {
           scene.playRepairSuccessAnimation(result.gearId)
           scene.setGearFault(result.gearId, 'none')
           scene.stopFaultPulse(result.gearId)
+          gearSystem.setGearFault(result.gearId, 'none')
           bellChimeEvaluationSystem.recordAction({ type: 'fault_clear', gearId: result.gearId, result: 'success' as const })
         } else {
           sound.playRepairFail()
@@ -727,15 +733,17 @@ function Game({ onGameEnd, mode }: GameProps) {
         timer.start()
         bellChimeEvaluationSystem.startSession()
 
-        if (isPatrolMode) {
-          faultSystem.setDifficulty(difficulty)
-          faultSystem.setGearCount(GEAR_CONFIGS.length)
-          faultSystem.start()
-        }
+        faultSystem.setDifficulty(difficulty)
+        faultSystem.setGearCount(GEAR_CONFIGS.length)
+        faultSystem.start()
 
         const faultUpdateInterval = setInterval(() => {
           faultSystem.update()
           setToolCooldowns(faultSystem.getToolCooldownsUI())
+
+          faultSystem.getActiveFaults().forEach((f) => {
+            gearSystem.setGearFault(f.gearId, f.type)
+          })
         }, 100)
         ;(window as unknown as { _faultUpdateInterval?: number })._faultUpdateInterval = faultUpdateInterval
       } else {
@@ -789,7 +797,14 @@ function Game({ onGameEnd, mode }: GameProps) {
     if (faultSystem) {
       faultSystem.setDifficulty(level)
     }
-  }, [])
+    if (!isPatrolMode) {
+      const timer = timerRef.current
+      if (timer) {
+        const adjustedDuration = difficultySystem.adjustTimeLimit(TOTAL_TIME)
+        setTotalTime(adjustedDuration)
+      }
+    }
+  }, [isPatrolMode])
 
   const currentObjective = keeperDiarySystem.getCurrentLevelObjective()
   const allHotspots = tourSystem.getHotspots()
@@ -828,7 +843,7 @@ function Game({ onGameEnd, mode }: GameProps) {
           faultHints={faultHints}
           difficulty={difficulty}
           onDifficultyChange={handleDifficultyChange}
-          showDifficultySelector={isPatrolMode}
+          showDifficultySelector={true}
         />
       )}
       {tourActive && tourState && tourProgress && (
