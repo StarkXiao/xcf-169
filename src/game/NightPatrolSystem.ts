@@ -174,6 +174,19 @@ export class NightPatrolSystem {
     return faults
   }
 
+  restoreActiveFaults(faults: ActiveGearFault[]): void {
+    this.activeFaults = faults.map(f => ({ ...f }))
+    this.callbacks.onFaultsChange?.([...this.activeFaults])
+  }
+
+  setCurrentPeriodIndex(index: number): void {
+    const clampedIndex = Math.max(0, Math.min(index, NIGHT_PERIODS.length - 1))
+    if (clampedIndex !== this.currentPeriodIndex) {
+      this.currentPeriodIndex = clampedIndex
+      this.callbacks.onPeriodChange?.(this.getCurrentPeriod())
+    }
+  }
+
   clearAllFaults(): void {
     this.activeFaults = []
     this.callbacks.onFaultsChange?.([])

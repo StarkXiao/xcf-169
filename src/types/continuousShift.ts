@@ -1,4 +1,4 @@
-import type { ClockTime, PeriodConfig, WeatherState, ActiveGearFault } from './index'
+import type { ClockTime, PeriodConfig, WeatherState, ActiveGearFault, GearFaultType } from './index'
 
 export type ShiftResourceType = 'oil' | 'coal' | 'repairKit' | 'coffee' | 'windCharge'
 
@@ -302,4 +302,6 @@ export interface ShiftRuntimeSaveData {
   nightStartTime: number
   activeEffects: ActiveShiftEffect[]
   periodConfig: PeriodConfig | null
+  gearAngles: { id: number; angle: number }[]
+  gearSystemFaults: { id: number; type: GearFaultType }[]
 }

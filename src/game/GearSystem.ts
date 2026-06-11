@@ -141,6 +141,47 @@ export class GearSystem {
     this.onTimeChange?.(this.currentTime)
   }
 
+  restoreFullState(
+    currentTime: ClockTime,
+    targetTime: ClockTime,
+    gearAngles: { id: number; angle: number }[],
+    faults: { id: number; type: GearFaultType }[],
+  ): void {
+    this.currentTime = { ...currentTime }
+    this.targetTime = { ...targetTime }
+
+    gearAngles.forEach(({ id, angle }) => {
+      const gear = this.gears.get(id)
+      if (gear) {
+        gear.angle = this.normalizeAngle(angle)
+        this.onGearRotate?.(id, gear.angle)
+      }
+    })
+
+    this.gearFaults.clear()
+    faults.forEach(({ id, type }) => {
+      if (type !== 'none') {
+        this.gearFaults.set(id, type)
+      }
+    })
+
+    this.onTimeChange?.(this.currentTime)
+  }
+
+  getFullStateSnapshot(): {
+    currentTime: ClockTime
+    targetTime: ClockTime
+    gearAngles: { id: number; angle: number }[]
+    faults: { id: number; type: GearFaultType }[]
+  } {
+    return {
+      currentTime: { ...this.currentTime },
+      targetTime: { ...this.targetTime },
+      gearAngles: Array.from(this.gears.values()).map((g) => ({ id: g.id, angle: g.angle })),
+      faults: Array.from(this.gearFaults.entries()).map(([id, type]) => ({ id, type })),
+    }
+  }
+
   setGearFault(gearId: number, faultType: GearFaultType): void {
     if (faultType === 'none') {
       this.gearFaults.delete(gearId)
