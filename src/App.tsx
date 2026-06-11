@@ -18,6 +18,7 @@ import TrainingReviewPanel from './ui/TrainingReviewPanel'
 import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
 import MuseumGameView from './ui/museum/MuseumGameView'
 import LevelSharePanel from './ui/LevelSharePanel'
+import FestivalActivityPanel from './ui/FestivalActivityPanel'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
@@ -29,7 +30,7 @@ import './styles/museum.css'
 import './styles/level-share.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -188,6 +189,9 @@ function App() {
   const handleOpenLevelShare = useCallback(() => goTo('levelShare'), [goTo])
   const handleCloseLevelShare = useCallback(() => goTo('menu'), [goTo])
 
+  const handleOpenFestival = useCallback(() => goTo('festival'), [goTo])
+  const handleCloseFestival = useCallback(() => goTo('menu'), [goTo])
+
   const handlePlaySharedLevel = useCallback((levelData: EditorLevelConfig, sharedLevelId: string) => {
     try {
       const loaded = loadEditorLevel(levelData)
@@ -263,7 +267,8 @@ function App() {
   const showDuoCoopResult = view === 'duoCoopResult'
   const showMuseum = view === 'museum'
   const showLevelShare = view === 'levelShare'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare
+  const showFestival = view === 'festival'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival
 
   return (
     <div className="app-container">
@@ -287,6 +292,7 @@ function App() {
           onStartDuoCoop={handleStartDuoCoop}
           onStartMuseum={handleStartMuseum}
           onOpenLevelShare={handleOpenLevelShare}
+          onOpenFestival={handleOpenFestival}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -380,6 +386,9 @@ function App() {
           onPlayLevel={handlePlaySharedLevel}
           onCreateLevel={handleCreateLevelFromShare}
         />
+      )}
+      {showFestival && (
+        <FestivalActivityPanel onClose={handleCloseFestival} />
       )}
     </div>
   )

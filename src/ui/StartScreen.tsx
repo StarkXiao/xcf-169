@@ -13,9 +13,10 @@ interface StartScreenProps {
   onStartDuoCoop: () => void
   onStartMuseum: () => void
   onOpenLevelShare: () => void
+  onOpenFestival: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
 
@@ -129,6 +130,9 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
         </button>
         <button className="editor-entry-btn" onClick={onOpenLevelShare} style={{ backgroundColor: '#1a2a3a', borderColor: '#5a7a9a' }}>
           🏛️ 关卡广场
+        </button>
+        <button className="editor-entry-btn festival-entry-btn" onClick={onOpenFestival}>
+          🎊 节庆活动
         </button>
         {onImportLevel && (
           <button className="editor-entry-btn" onClick={onImportLevel} style={{ backgroundColor: '#1a3a2a', borderColor: '#3d7a5a' }}>

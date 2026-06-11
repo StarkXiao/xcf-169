@@ -737,3 +737,114 @@ export interface LevelShareFilters {
   tags?: string[]
   authorId?: string
 }
+
+// ==================== 节庆钟声活动中心 (FestivalActivitySystem / FestivalActivityPanel) ====================
+
+export type FestivalSeason = 'spring' | 'summer' | 'autumn' | 'winter'
+
+export type FestivalId =
+  | 'spring_festival'
+  | 'lantern'
+  | 'dragon_boat'
+  | 'mid_autumn'
+  | 'double_ninth'
+  | 'christmas'
+  | 'halloween'
+  | 'new_year'
+
+export interface FestivalTheme {
+  primaryColor: string
+  secondaryColor: string
+  accentColor: string
+  bgColor: string
+  bgGradient: string
+  borderColor: string
+  glowColor: string
+  iconColor: string
+}
+
+export interface FestivalConfig {
+  id: FestivalId
+  name: string
+  displayName: string
+  season: FestivalSeason
+  icon: string
+  description: string
+  theme: FestivalTheme
+  bellPresetId: string
+}
+
+export interface FestivalActivityPeriod {
+  id: string
+  festivalId: FestivalId
+  name: string
+  displayName: string
+  order: number
+  startTimestamp: number
+  endTimestamp: number
+  rules: FestivalPeriodRules
+  rewards: FestivalPeriodReward[]
+}
+
+export interface FestivalPeriodRules {
+  scoreMultiplier: number
+  bonusCondition: string
+  bonusDescription: string
+  bonusMultiplier: number
+  maxAttemptsPerDay: number
+  requiredAccuracy: number
+  timeBonusThreshold: number
+}
+
+export interface FestivalPeriodReward {
+  id: string
+  name: string
+  displayName: string
+  icon: string
+  requiredScore: number
+  type: 'bell_preset' | 'material' | 'tool' | 'badge' | 'currency'
+  rewardId: string
+  quantity: number
+  description: string
+}
+
+export interface FestivalLeaderboardEntry {
+  rank: number
+  playerId: string
+  playerName: string
+  playerAvatar: string
+  score: number
+  completedAt: number
+  festivalId: FestivalId
+  periodId: string
+}
+
+export interface FestivalPlayerRecord {
+  festivalId: FestivalId
+  periodId: string
+  totalScore: number
+  bestScore: number
+  attempts: number
+  claimedRewards: string[]
+  lastPlayTimestamp: number
+  dailyAttempts: number
+  lastDailyReset: number
+}
+
+export interface FestivalActivityState {
+  currentFestivalId: FestivalId | null
+  activePeriodIds: string[]
+  playerRecords: FestivalPlayerRecord[]
+  totalFestivalScore: number
+  unlockedFestivalIds: FestivalId[]
+  claimedRewardIds: string[]
+}
+
+export interface FestivalActivityEffects {
+  scoreMultiplier: number
+  bonusMultiplier: number
+  maxAttemptsPerDay: number
+  activeFestival: FestivalConfig | null
+  activePeriod: FestivalActivityPeriod | null
+  theme: FestivalTheme | null
+}
