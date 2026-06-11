@@ -27,27 +27,81 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
   }
 
   const isPatrol = !!result.isPatrolMode
+  const isPerfect = result.score >= 2500
+  const currentChapter = keeperDiarySystem.getCurrentDiaryChapter()
+  const settlementText = keeperDiarySystem.getSettlementText(currentChapter?.id || null)
+
+  const getResultTitle = () => {
+    if (isPatrol) {
+      return result.success ? '巡夜圆满完成！' : '巡夜中断...'
+    }
+    if (result.success && isPerfect && settlementText.perfect) {
+      return settlementText.perfect.title
+    }
+    if (result.success && settlementText.success) {
+      return settlementText.success.title
+    }
+    if (!result.success && settlementText.fail) {
+      return settlementText.fail.title
+    }
+    return result.success ? '钟声准时响起！' : '钟声失准了...'
+  }
+
+  const getResultSubtitle = () => {
+    if (isPatrol) {
+      return result.success
+        ? `守钟人，你成功穿越了${result.periodsCleared}/${result.totalPeriods}个巡夜时段！`
+        : `暴风雨太猛烈了...你完成了${result.periodsCleared}/${result.totalPeriods}个时段`
+    }
+    if (result.success && isPerfect && settlementText.perfect) {
+      return settlementText.perfect.subtitle
+    }
+    if (result.success && settlementText.success) {
+      return settlementText.success.subtitle
+    }
+    if (!result.success && settlementText.fail) {
+      return settlementText.fail.subtitle
+    }
+    return result.success
+      ? '守钟人，时间已校准，钟声回荡在雨夜中'
+      : '暴风雨还是打乱了时间的节奏...'
+  }
+
+  const getResultDescription = () => {
+    if (isPatrol) return null
+    if (result.success && isPerfect && settlementText.perfect) {
+      return settlementText.perfect.description
+    }
+    if (result.success && settlementText.success) {
+      return settlementText.success.description
+    }
+    if (!result.success && settlementText.fail) {
+      return settlementText.fail.description
+    }
+    return null
+  }
+
+  const description = getResultDescription()
 
   return (
     <div className="gameover-panel">
       <h1 className={`result-title ${result.success ? 'success' : 'failed'}`}>
-        {isPatrol
-          ? result.success
-            ? '巡夜圆满完成！'
-            : '巡夜中断...'
-          : result.success
-            ? '钟声准时响起！'
-            : '钟声失准了...'}
+        {getResultTitle()}
       </h1>
       <p className="game-subtitle">
-        {isPatrol
-          ? result.success
-            ? `守钟人，你成功穿越了${result.periodsCleared}/${result.totalPeriods}个巡夜时段！`
-            : `暴风雨太猛烈了...你完成了${result.periodsCleared}/${result.totalPeriods}个时段`
-          : result.success
-            ? '守钟人，时间已校准，钟声回荡在雨夜中'
-            : '暴风雨还是打乱了时间的节奏...'}
+        {getResultSubtitle()}
       </p>
+      {description && (
+        <p className="game-description-diary">
+          {description}
+        </p>
+      )}
+      {currentChapter && !isPatrol && (
+        <div className="diary-chapter-indicator">
+          <span className="chapter-icon">{currentChapter.icon}</span>
+          <span className="chapter-label">当前章节：第{currentChapter.order}章 · {currentChapter.title}</span>
+        </div>
+      )}
       <div className="result-stats">
         <div className="stat-row">
           <span className="stat-label">最终得分</span>

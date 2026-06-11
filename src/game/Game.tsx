@@ -7,6 +7,7 @@ import { SoundManager } from './SoundManager'
 import { NightPatrolSystem, NIGHT_PERIODS } from './NightPatrolSystem'
 import { StormSystem } from './StormSystem'
 import { workshopSystem } from './WorkshopSystem'
+import { keeperDiarySystem } from './KeeperDiarySystem'
 import GameHUD from '../ui/GameHUD'
 import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
 
@@ -56,10 +57,12 @@ function Game({ onGameEnd, mode }: GameProps) {
   const [stormScoreImpact, setStormScoreImpact] = useState(0)
 
   const calculateClassicScore = useCallback((remaining: number, diffMinutes: number) => {
+    const diEffects = keeperDiarySystem.getEffects()
     const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
-    const timeBonus = remaining * 5
+    const timeBonus = Math.floor(remaining * 5 * diEffects.timeBonusMultiplier)
     const perfectBonus = diffMinutes === 0 ? 1000 : 0
-    return Math.floor(accuracyBonus + timeBonus + perfectBonus)
+    const baseScore = accuracyBonus + timeBonus + perfectBonus
+    return Math.floor(baseScore * diEffects.scoreMultiplier)
   }, [])
 
   const handlePeriodComplete = useCallback(() => {
@@ -78,10 +81,11 @@ function Game({ onGameEnd, mode }: GameProps) {
 
     const diffMinutes = gs.getTimeDiffMinutes()
 
-    const baseScore = 500
-    const accuracyBonus = Math.max(0, (360 - diffMinutes) * 2)
-    const timeBonus = remaining * 5
-    const periodBonus = 300 * (patrol.getPeriodIndex() + 1)
+    const diEffects = keeperDiarySystem.getEffects()
+    const baseScore = Math.floor(500 * diEffects.scoreMultiplier)
+    const accuracyBonus = Math.max(0, Math.floor((360 - diffMinutes) * 2 * diEffects.scoreMultiplier))
+    const timeBonus = Math.floor(remaining * 5 * diEffects.timeBonusMultiplier * diEffects.scoreMultiplier)
+    const periodBonus = Math.floor(300 * (patrol.getPeriodIndex() + 1) * diEffects.scoreMultiplier)
 
     patrol.accumulatePeriodScore(baseScore, accuracyBonus, timeBonus, periodBonus)
 
@@ -227,10 +231,19 @@ function Game({ onGameEnd, mode }: GameProps) {
     }
 
     const initEffects = workshopSystem.getEffects()
-    gearSystem.setWorkshopEffects(initEffects)
+    const initDiaryEffects = keeperDiarySystem.getEffects()
+    const mergedEffects = {
+      ...initEffects,
+      toleranceMinutes: initEffects.toleranceMinutes + initDiaryEffects.toleranceBonus,
+    }
+    gearSystem.setWorkshopEffects(mergedEffects)
     sound.setGearMaterial(workshopSystem.getCurrentMaterial())
     sound.setEnhancedFeedback(initEffects.enhancedFeedback)
-    setWorkshopEffects(initEffects)
+    setWorkshopEffects(mergedEffects)
+
+    if (initDiaryEffects.customTargetTime && !isPatrolMode) {
+      gearSystem.setTargetTime(initDiaryEffects.customTargetTime)
+    }
 
     sound.playRain(isPatrolMode ? NIGHT_PERIODS[0].weather.rain : 'light')
     if (isPatrolMode) {
@@ -438,6 +451,8 @@ function Game({ onGameEnd, mode }: GameProps) {
     setSoundEnabled(enabled)
   }, [])
 
+  const currentObjective = keeperDiarySystem.getCurrentLevelObjective()
+
   return (
     <div className="game-container">
       <div ref={canvasRef} className="game-canvas" />
@@ -459,6 +474,7 @@ function Game({ onGameEnd, mode }: GameProps) {
         stormState={stormState}
         onRollback={handleRollback}
         stormScoreImpact={stormScoreImpact}
+        diaryObjective={currentObjective}
       />
     </div>
   )

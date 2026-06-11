@@ -583,3 +583,136 @@
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(201, 169, 106, 0.3);
 }
+
+.diary-objective-panel {
+  position: fixed;
+  left: 1rem;
+  bottom: 4rem;
+  background: rgba(26, 20, 8, 0.92);
+  border: 1px solid rgba(201, 169, 106, 0.4);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  max-width: 300px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: objectiveSlideIn 0.4s ease;
+}
+
+@keyframes objectiveSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.diary-objective-panel.completed {
+  border-color: rgba(126, 201, 126, 0.5);
+  background: rgba(20, 32, 20, 0.92);
+}
+
+.diary-objective-icon {
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(201, 169, 106, 0.15);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.diary-objective-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.diary-objective-title {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #c9a96a;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diary-objective-panel.completed .diary-objective-title {
+  color: #7ec97e;
+}
+
+.diary-objective-desc {
+  font-size: 0.78rem;
+  color: rgba(200, 200, 200, 0.75);
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+}
+
+.diary-objective-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.diary-objective-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.diary-objective-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9a96a, #e8c98a);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.diary-objective-panel.completed .diary-objective-progress-fill {
+  background: linear-gradient(90deg, #7ec97e, #a8e0a8);
+}
+
+.diary-objective-progress-text {
+  font-size: 0.72rem;
+  color: rgba(201, 169, 106, 0.8);
+  flex-shrink: 0;
+}
+
+.game-description-diary {
+  font-size: 0.9rem;
+  color: rgba(220, 220, 220, 0.75);
+  text-align: center;
+  max-width: 500px;
+  margin: 0.5rem auto 1.5rem;
+  line-height: 1.6;
+  font-style: italic;
+  padding: 0 1rem;
+}
+
+.diary-chapter-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  background: rgba(201, 169, 106, 0.1);
+  border: 1px solid rgba(201, 169, 106, 0.3);
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+
+.chapter-icon {
+  font-size: 1rem;
+}
+
+.chapter-label {
+  font-size: 0.8rem;
+  color: #c9a96a;
+}

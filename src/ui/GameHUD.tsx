@@ -1,6 +1,7 @@
-import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects, StormState } from '../types'
+import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects, StormState, DiaryLevelObjective } from '../types'
 import { FAULT_DESCRIPTIONS, WEATHER_DESCRIPTIONS } from '../game/NightPatrolSystem'
 import { workshopSystem } from '../game/WorkshopSystem'
+import { keeperDiarySystem } from '../game/KeeperDiarySystem'
 
 interface GameHUDProps {
   timeLeft: number
@@ -20,6 +21,7 @@ interface GameHUDProps {
   stormState?: StormState | null
   onRollback?: () => void
   stormScoreImpact?: number
+  diaryObjective?: DiaryLevelObjective | null
 }
 
 function GameHUD({
@@ -40,7 +42,9 @@ function GameHUD({
   stormState = null,
   onRollback,
   stormScoreImpact = 0,
+  diaryObjective,
 }: GameHUDProps) {
+  const objective = diaryObjective ?? keeperDiarySystem.getCurrentLevelObjective()
   const material = workshopSystem.getCurrentMaterial()
   const activeTools = workshopSystem.getActiveToolConfigs()
   const effects = workshopEffects ?? workshopSystem.getEffects()
@@ -195,6 +199,31 @@ function GameHUD({
           </div>
         )}
       </div>
+
+      {objective && !isPatrolMode && (
+        <div className={`diary-objective-panel ${objective.isCompleted ? 'completed' : ''}`}>
+          <div className="diary-objective-icon">{objective.icon}</div>
+          <div className="diary-objective-info">
+            <div className="diary-objective-title">
+              {objective.isCompleted ? '✅ ' : '📋 '}{objective.title}
+            </div>
+            <div className="diary-objective-desc">{objective.description}</div>
+            {!objective.isCompleted && typeof objective.progress === 'number' && (objective.target ?? 0) > 1 && (
+              <div className="diary-objective-progress">
+                <div className="diary-objective-progress-bar">
+                  <div
+                    className="diary-objective-progress-fill"
+                    style={{ width: `${Math.min(100, (objective.progress / (objective.target ?? 1)) * 100)}%` }}
+                  />
+                </div>
+                <span className="diary-objective-progress-text">
+                  {objective.progress}/{objective.target}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="hint-panel">
         {isPatrolMode

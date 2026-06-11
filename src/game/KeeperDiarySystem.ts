@@ -666,6 +666,18 @@ export class KeeperDiarySystem {
     })
   }
 
+  getCurrentDiaryChapter(): DiaryEntry | null {
+    const unlocked = this.getUnlockedEntries()
+    if (unlocked.length === 0) return null
+    return unlocked[unlocked.length - 1] || null
+  }
+
+  getCurrentLevelObjective(): DiaryLevelObjective | null {
+    const objectives = this.getLevelObjectives()
+    const inProgress = objectives.find((o) => !o.isCompleted)
+    return inProgress || objectives[objectives.length - 1] || null
+  }
+
   getTotalDiaryScore(): number {
     return this.state.totalDiaryScore
   }
