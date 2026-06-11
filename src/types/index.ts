@@ -33,6 +33,62 @@ export type WeatherIntensity = 'calm' | 'light' | 'moderate' | 'heavy' | 'storm'
 
 export type GearFaultType = 'none' | 'jam' | 'slip' | 'reverse' | 'freeze'
 
+export type RepairToolType = 'wrench' | 'oil' | 'hammer' | 'tester'
+
+export interface RepairToolConfig {
+  id: RepairToolType
+  name: string
+  displayName: string
+  icon: string
+  description: string
+  effectiveFaults: GearFaultType[]
+  repairTimeMs: number
+  successRate: number
+  cooldownMs: number
+}
+
+export interface ActiveRepair {
+  gearId: number
+  toolType: RepairToolType
+  startedAt: number
+  durationMs: number
+}
+
+export interface FaultRepairResult {
+  success: boolean
+  gearId: number
+  faultType: GearFaultType
+  toolUsed: RepairToolType
+  timeTakenMs: number
+}
+
+export type DifficultyLevel = 'easy' | 'normal' | 'hard' | 'expert' | 'nightmare'
+
+export interface DifficultyConfig {
+  id: DifficultyLevel
+  name: string
+  displayName: string
+  description: string
+  scoreMultiplier: number
+  faultFrequency: number
+  faultDurationMultiplier: number
+  faultSeverity: GearFaultType[]
+  maxActiveFaults: number
+  repairTimeMultiplier: number
+  timeLimitMultiplier: number
+  hintEnabled: boolean
+  tutorialEnabled: boolean
+}
+
+export interface GearFaultHint {
+  gearId: number
+  faultType: GearFaultType
+  severity: 'low' | 'medium' | 'high'
+  hintText: string
+}
+
+export type FaultSoundType = 'jam_occur' | 'slip_occur' | 'reverse_occur' | 'freeze_occur' | 'repair_start' | 'repair_success' | 'repair_fail' | 'inspect'
+
 export interface PeriodConfig {
   id: NightPeriod
   name: string

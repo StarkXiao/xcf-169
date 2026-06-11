@@ -10,9 +10,11 @@ import { workshopSystem } from './WorkshopSystem'
 import { keeperDiarySystem } from './KeeperDiarySystem'
 import { bellChimeEvaluationSystem } from './BellChimeEvaluationSystem'
 import { tourSystem } from './tour/TourSystem'
+import { GearFaultSystem } from './GearFaultSystem'
+import { difficultySystem } from './DifficultySystem'
 import GameHUD from '../ui/GameHUD'
 import TourView from '../ui/TourView'
-import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats } from '../types'
+import type { GameResult, ClockTime, GameMode, WeatherState, ActiveGearFault, PeriodConfig, GearFaultType, WorkshopEffects, StormState, LightningStrikeEffect, StormStats, RepairToolType, ActiveRepair, FaultRepairResult, GearFaultHint, DifficultyLevel } from '../types'
 import type { TourState, TourHotspot, TourProgress } from '../types/tour'
 
 interface GameProps {
@@ -59,6 +61,14 @@ function Game({ onGameEnd, mode }: GameProps) {
   )
   const [stormState, setStormState] = useState<StormState | null>(null)
   const [stormScoreImpact, setStormScoreImpact] = useState(0)
+
+  const gearFaultSystemRef = useRef<GearFaultSystem | null>(null)
+  const [repairMode, setRepairMode] = useState(false)
+  const [selectedRepairTool, setSelectedRepairTool] = useState<RepairToolType | null>(null)
+  const [activeRepairs, setActiveRepairs] = useState<{ gearId: number; progress: number; toolType: string }[]>([])
+  const [toolCooldowns, setToolCooldowns] = useState<Record<string, number>>({})
+  const [faultHints, setFaultHints] = useState<GearFaultHint[]>([])
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('normal')
 
   const [tourActive, setTourActive] = useState(false)
   const [tourState, setTourState] = useState<TourState | null>(null)
@@ -550,9 +560,26 @@ function Game({ onGameEnd, mode }: GameProps) {
     const scene = new MainScene()
     sceneRef.current = scene
 
+    const faultSystem = new GearFaultSystem()
+    gearFaultSystemRef.current = faultSystem
+
     scene.setCallbacks(
       (gearId: number, direction: 1 | -1) => {
         if (gameEnded) return
+
+        if (repairMode && selectedRepairTool) {
+          const fault = faultSystem.getActiveFault(gearId)
+          if (fault && !faultSystem.isRepairInProgress(gearId)) {
+            const started = faultSystem.startRepair(gearId, selectedRepairTool)
+            if (started) {
+              sound.playRepairStart()
+              scene.startRepair(gearId, selectedRepairTool)
+              setSelectedRepairTool(null)
+            }
+          }
+          return
+        }
+
         const result = gearSystem.rotateGear(gearId, direction)
 
         if (result.skipped) {
@@ -596,6 +623,47 @@ function Game({ onGameEnd, mode }: GameProps) {
     gearSystem.setOnFaultTriggered((gearId: number, _faultType: GearFaultType) => {
       bellChimeEvaluationSystem.recordAction({ type: 'fault_occur', gearId, result: 'failure' })
       scene.flashGearFault(gearId)
+    })
+
+    faultSystem.setCallbacks({
+      onFaultSpawned: (fault: ActiveGearFault) => {
+        bellChimeEvaluationSystem.recordAction({ type: 'fault_occur', gearId: fault.gearId, result: 'failure' })
+        scene.setGearFault(fault.gearId, fault.type)
+        sound.playGearFaultByType(fault.type)
+        scene.startFaultPulse(fault.gearId)
+        setFaults(faultSystem.getActiveFaults())
+      },
+      onFaultExpired: (fault: ActiveGearFault) => {
+        scene.setGearFault(fault.gearId, 'none')
+        scene.stopFaultPulse(fault.gearId)
+        setFaults(faultSystem.getActiveFaults())
+      },
+      onRepairStart: (_repair: ActiveRepair) => {
+        setActiveRepairs(faultSystem.getActiveRepairsUI())
+      },
+      onRepairProgress: (gearId: number, progress: number) => {
+        scene.setRepairProgress(gearId, progress)
+        setActiveRepairs(faultSystem.getActiveRepairsUI())
+      },
+      onRepairComplete: (result: FaultRepairResult) => {
+        setActiveRepairs(faultSystem.getActiveRepairsUI())
+        setToolCooldowns(faultSystem.getToolCooldownsUI())
+        if (result.success) {
+          sound.playRepairSuccess()
+          scene.playRepairSuccessAnimation(result.gearId)
+          scene.setGearFault(result.gearId, 'none')
+          scene.stopFaultPulse(result.gearId)
+          bellChimeEvaluationSystem.recordAction({ type: 'fault_clear', gearId: result.gearId, result: 'success' as const })
+        } else {
+          sound.playRepairFail()
+          scene.playRepairFailAnimation(result.gearId)
+          bellChimeEvaluationSystem.recordAction({ type: 'fault_occur', gearId: result.gearId, result: 'failure' as const })
+        }
+        setFaults(faultSystem.getActiveFaults())
+      },
+      onHintGenerated: (hints: GearFaultHint[]) => {
+        setFaultHints(hints)
+      },
     })
 
     scene.events.on('lightning', () => {
@@ -658,6 +726,18 @@ function Game({ onGameEnd, mode }: GameProps) {
         storm.start()
         timer.start()
         bellChimeEvaluationSystem.startSession()
+
+        if (isPatrolMode) {
+          faultSystem.setDifficulty(difficulty)
+          faultSystem.setGearCount(GEAR_CONFIGS.length)
+          faultSystem.start()
+        }
+
+        const faultUpdateInterval = setInterval(() => {
+          faultSystem.update()
+          setToolCooldowns(faultSystem.getToolCooldownsUI())
+        }, 100)
+        ;(window as unknown as { _faultUpdateInterval?: number })._faultUpdateInterval = faultUpdateInterval
       } else {
         setTimeout(initScene, 100)
       }
@@ -667,6 +747,8 @@ function Game({ onGameEnd, mode }: GameProps) {
     return () => {
       const interval = (window as unknown as { _patrolFaultInterval?: number })._patrolFaultInterval
       if (interval) clearInterval(interval)
+      const faultInterval = (window as unknown as { _faultUpdateInterval?: number })._faultUpdateInterval
+      if (faultInterval) clearInterval(faultInterval)
       storm.destroy()
       timer.destroy()
       sound.destroy()
@@ -689,6 +771,24 @@ function Game({ onGameEnd, mode }: GameProps) {
     if (!sound) return
     const enabled = sound.toggle()
     setSoundEnabled(enabled)
+  }, [])
+
+  const handleToggleRepairMode = useCallback(() => {
+    setRepairMode((prev) => !prev)
+    setSelectedRepairTool(null)
+  }, [])
+
+  const handleSelectRepairTool = useCallback((tool: RepairToolType | null) => {
+    setSelectedRepairTool(tool)
+  }, [])
+
+  const handleDifficultyChange = useCallback((level: DifficultyLevel) => {
+    setDifficulty(level)
+    difficultySystem.setDifficulty(level)
+    const faultSystem = gearFaultSystemRef.current
+    if (faultSystem) {
+      faultSystem.setDifficulty(level)
+    }
   }, [])
 
   const currentObjective = keeperDiarySystem.getCurrentLevelObjective()
@@ -719,6 +819,16 @@ function Game({ onGameEnd, mode }: GameProps) {
           onRollback={handleRollback}
           stormScoreImpact={stormScoreImpact}
           diaryObjective={currentObjective}
+          repairMode={repairMode}
+          onToggleRepairMode={handleToggleRepairMode}
+          selectedRepairTool={selectedRepairTool}
+          onSelectRepairTool={handleSelectRepairTool}
+          activeRepairs={activeRepairs}
+          toolCooldowns={toolCooldowns}
+          faultHints={faultHints}
+          difficulty={difficulty}
+          onDifficultyChange={handleDifficultyChange}
+          showDifficultySelector={isPatrolMode}
         />
       )}
       {tourActive && tourState && tourProgress && (

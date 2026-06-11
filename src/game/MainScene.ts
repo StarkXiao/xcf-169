@@ -76,6 +76,14 @@ export class MainScene extends Phaser.Scene {
   private targetMinuteMarker!: Phaser.GameObjects.Graphics
   private targetTimeText!: Phaser.GameObjects.Text
 
+  private repairProgressRings: Map<number, Phaser.GameObjects.Graphics> = new Map()
+  private repairGlowEffects: Map<number, Phaser.GameObjects.Graphics> = new Map()
+  private faultPulseTweens: Map<number, Phaser.Tweens.Tween> = new Map()
+  private gearHintTexts: Map<number, Phaser.GameObjects.Text> = new Map()
+  private onGearRepair?: (gearId: number, toolType: string) => void
+  private selectedRepairTool: string | null = null
+  private repairMode: boolean = false
+
   constructor() {
     super('MainScene')
   }
@@ -107,6 +115,20 @@ export class MainScene extends Phaser.Scene {
     onGearClick: (gearId: number, direction: 1 | -1) => void,
   ) {
     this.onGearClick = onGearClick
+  }
+
+  setRepairCallbacks(
+    onGearRepair: (gearId: number, toolType: string) => void,
+  ) {
+    this.onGearRepair = onGearRepair
+  }
+
+  setRepairMode(enabled: boolean): void {
+    this.repairMode = enabled
+  }
+
+  setSelectedRepairTool(toolType: string | null): void {
+    this.selectedRepairTool = toolType
   }
 
   create() {
@@ -646,14 +668,41 @@ export class MainScene extends Phaser.Scene {
     container.add(faultIndicator)
     this.gearFaultIndicators.set(id, faultIndicator)
 
+    const repairProgressRing = this.add.graphics()
+    repairProgressRing.setDepth(25)
+    repairProgressRing.setVisible(false)
+    container.add(repairProgressRing)
+    this.repairProgressRings.set(id, repairProgressRing)
+
+    const repairGlow = this.add.graphics()
+    repairGlow.setDepth(15)
+    repairGlow.setVisible(false)
+    container.add(repairGlow)
+    this.repairGlowEffects.set(id, repairGlow)
+
+    const gearHintText = this.add.text(0, radius + 40, '', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '11px',
+      color: '#ffd700',
+      align: 'center',
+      wordWrap: { width: radius * 2 },
+    }).setOrigin(0.5)
+    gearHintText.setVisible(false)
+    container.add(gearHintText)
+    this.gearHintTexts.set(id, gearHintText)
+
     const hitArea = this.add.zone(0, 0, radius * 2.5, radius * 2.5)
     hitArea.setInteractive({ useHandCursor: true })
     container.add(hitArea)
 
     hitArea.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      const localX = pointer.x - x
-      const direction: 1 | -1 = localX >= 0 ? 1 : -1
-      this.onGearClick?.(id, direction)
+      if (this.repairMode && this.selectedRepairTool) {
+        this.onGearRepair?.(id, this.selectedRepairTool)
+      } else {
+        const localX = pointer.x - x
+        const direction: 1 | -1 = localX >= 0 ? 1 : -1
+        this.onGearClick?.(id, direction)
+      }
     })
 
     this.gearSprites.set(id, container)
@@ -906,6 +955,217 @@ export class MainScene extends Phaser.Scene {
     this.cameras.main.fadeOut(800, 10, 5, 20)
     this.time.delayedCall(800, () => {
       this.cameras.main.fadeIn(800, 10, 5, 20)
+    })
+  }
+
+  startRepair(gearId: number, _toolType: string): void {
+    const ring = this.repairProgressRings.get(gearId)
+    const glow = this.repairGlowEffects.get(gearId)
+    if (ring) {
+      ring.setVisible(true)
+      ring.clear()
+      ring.lineStyle(4, 0x7ec97e, 0.9)
+      ring.beginPath()
+      ring.arc(0, 0, (this.gearRadii.get(gearId) ?? 50) + 15, -Math.PI / 2, -Math.PI / 2, false)
+      ring.strokePath()
+    }
+    if (glow) {
+      glow.setVisible(true)
+      glow.clear()
+      glow.lineStyle(10, 0x7ec97e, 0.2)
+      glow.beginPath()
+      glow.arc(0, 0, (this.gearRadii.get(gearId) ?? 50) + 15, 0, Math.PI * 2, false)
+      glow.strokePath()
+    }
+  }
+
+  setRepairProgress(gearId: number, progress: number): void {
+    const ring = this.repairProgressRings.get(gearId)
+    const container = this.gearSprites.get(gearId)
+    const glow = this.repairGlowEffects.get(gearId)
+    const radius = this.gearRadii.get(gearId) ?? 50
+
+    if (!ring || !container || !glow) return
+
+    ring.setVisible(true)
+    ring.clear()
+    ring.lineStyle(4, 0x7ec97e, 0.9)
+    ring.beginPath()
+    ring.arc(0, 0, radius + 15, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2, false)
+    ring.strokePath()
+
+    glow.setVisible(true)
+    glow.clear()
+    glow.lineStyle(10, 0x7ec97e, 0.2 + progress * 0.3)
+    glow.beginPath()
+    glow.arc(0, 0, radius + 15, 0, Math.PI * 2, false)
+    glow.strokePath()
+
+    if (progress >= 1) {
+      this.time.delayedCall(300, () => {
+        ring.setVisible(false)
+        glow.setVisible(false)
+      })
+    }
+  }
+
+  playRepairSuccessAnimation(gearId: number): void {
+    const container = this.gearSprites.get(gearId)
+    const ring = this.repairProgressRings.get(gearId)
+    const glow = this.repairGlowEffects.get(gearId)
+    const radius = this.gearRadii.get(gearId) ?? 50
+    if (!container) return
+
+    const x = container.x
+    const y = container.y
+
+    for (let i = 0; i < 20; i++) {
+      const angle = (i / 20) * Math.PI * 2
+      const dist = radius * 0.8
+      const px = x + Math.cos(angle) * dist
+      const py = y + Math.sin(angle) * dist
+
+      const spark = this.add.circle(px, py, 3 + Math.random() * 3, 0x7ec97e, 1)
+      spark.setDepth(40)
+
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * dist * 2.5,
+        y: y + Math.sin(angle) * dist * 2.5,
+        alpha: { from: 1, to: 0 },
+        scale: { from: 1, to: 0.2 },
+        duration: 600,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onComplete: () => spark.destroy(),
+      })
+    }
+
+    const successRing = this.add.circle(x, y, radius + 20, 0x7ec97e, 0)
+    successRing.setDepth(35)
+    successRing.setStrokeStyle(3, 0x7ec97e, 0.8)
+    this.tweens.add({
+      targets: successRing,
+      scale: { from: 0.5, to: 2 },
+      alpha: { from: 0.8, to: 0 },
+      duration: 500,
+      ease: Phaser.Math.Easing.Quadratic.Out,
+      onComplete: () => successRing.destroy(),
+    })
+
+    this.time.delayedCall(500, () => {
+      ring?.setVisible(false)
+      glow?.setVisible(false)
+    })
+  }
+
+  playRepairFailAnimation(gearId: number): void {
+    const container = this.gearSprites.get(gearId)
+    const ring = this.repairProgressRings.get(gearId)
+    const glow = this.repairGlowEffects.get(gearId)
+    if (!container) return
+
+    const x = container.x
+    const y = container.y
+
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Math.random() * 0.5
+      const dist = 30 + Math.random() * 20
+      const px = x + Math.cos(angle) * dist
+      const py = y + Math.sin(angle) * dist
+
+      const spark = this.add.circle(px, py, 3, 0xff6b6b, 1)
+      spark.setDepth(40)
+
+      this.tweens.add({
+        targets: spark,
+        x: x + Math.cos(angle) * (dist + 20),
+        y: y + Math.sin(angle) * (dist + 20),
+        alpha: { from: 1, to: 0 },
+        scale: { from: 1, to: 0.3 },
+        duration: 400,
+        ease: Phaser.Math.Easing.Quadratic.Out,
+        onComplete: () => spark.destroy(),
+      })
+    }
+
+    this.tweens.add({
+      targets: container,
+      x: { from: x - 5, to: x + 5 },
+      duration: 50,
+      yoyo: true,
+      repeat: 4,
+      onComplete: () => {
+        container.x = x
+      },
+    })
+
+    this.time.delayedCall(300, () => {
+      ring?.setVisible(false)
+      glow?.setVisible(false)
+    })
+  }
+
+  setGearHint(gearId: number, hintText: string, visible: boolean = true): void {
+    const hint = this.gearHintTexts.get(gearId)
+    if (!hint) return
+
+    hint.setText(hintText)
+    hint.setVisible(visible)
+
+    if (visible) {
+      hint.setAlpha(0)
+      this.tweens.add({
+        targets: hint,
+        alpha: { from: 0, to: 1 },
+        duration: 300,
+        ease: Phaser.Math.Easing.Quadratic.InOut,
+      })
+    }
+  }
+
+  clearAllGearHints(): void {
+    this.gearHintTexts.forEach((hint) => {
+      hint.setVisible(false)
+    })
+  }
+
+  startFaultPulse(gearId: number): void {
+    const container = this.gearSprites.get(gearId)
+    if (!container || this.faultPulseTweens.has(gearId)) return
+
+    const pulseTween = this.tweens.add({
+      targets: container,
+      scale: { from: 1, to: 1.05 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: Phaser.Math.Easing.Sine.InOut,
+    })
+
+    this.faultPulseTweens.set(gearId, pulseTween)
+  }
+
+  stopFaultPulse(gearId: number): void {
+    const tween = this.faultPulseTweens.get(gearId)
+    if (tween) {
+      tween.remove()
+      this.faultPulseTweens.delete(gearId)
+    }
+
+    const container = this.gearSprites.get(gearId)
+    if (container) {
+      container.setScale(1)
+    }
+  }
+
+  stopAllFaultPulses(): void {
+    this.faultPulseTweens.forEach((tween) => {
+      tween.remove()
+    })
+    this.faultPulseTweens.clear()
+
+    this.gearSprites.forEach((container) => {
+      container.setScale(1)
     })
   }
 

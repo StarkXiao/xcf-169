@@ -389,6 +389,256 @@ export class SoundManager {
     osc.stop(this.audioContext.currentTime + 0.2)
   }
 
+  playJamFault(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const bufferSize = this.audioContext.sampleRate * 0.3
+    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2)
+    }
+    const noise = this.audioContext.createBufferSource()
+    noise.buffer = buffer
+
+    const filter = this.audioContext.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.setValueAtTime(300, this.audioContext.currentTime)
+    filter.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.3)
+
+    const gain = this.audioContext.createGain()
+    gain.gain.setValueAtTime(0.15, this.audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.3)
+
+    const osc = this.audioContext.createOscillator()
+    const oscGain = this.audioContext.createGain()
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(150, this.audioContext.currentTime)
+    osc.frequency.linearRampToValueAtTime(80, this.audioContext.currentTime + 0.25)
+    oscGain.gain.setValueAtTime(0.1, this.audioContext.currentTime)
+    oscGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.25)
+
+    noise.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.masterGain)
+    noise.start()
+
+    osc.connect(oscGain)
+    oscGain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.25)
+  }
+
+  playSlipFault(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc1 = this.audioContext.createOscillator()
+    const gain1 = this.audioContext.createGain()
+    osc1.type = 'sine'
+    osc1.frequency.setValueAtTime(400, this.audioContext.currentTime)
+    osc1.frequency.exponentialRampToValueAtTime(600, this.audioContext.currentTime + 0.1)
+    osc1.frequency.exponentialRampToValueAtTime(300, this.audioContext.currentTime + 0.2)
+    gain1.gain.setValueAtTime(0, this.audioContext.currentTime)
+    gain1.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.02)
+    gain1.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2)
+
+    const osc2 = this.audioContext.createOscillator()
+    const gain2 = this.audioContext.createGain()
+    osc2.type = 'triangle'
+    osc2.frequency.setValueAtTime(550, this.audioContext.currentTime + 0.05)
+    osc2.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.15)
+    gain2.gain.setValueAtTime(0, this.audioContext.currentTime + 0.05)
+    gain2.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.07)
+    gain2.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15)
+
+    osc1.connect(gain1)
+    gain1.connect(this.masterGain)
+    osc1.start()
+    osc1.stop(this.audioContext.currentTime + 0.2)
+
+    osc2.connect(gain2)
+    gain2.connect(this.masterGain)
+    osc2.start(this.audioContext.currentTime + 0.05)
+    osc2.stop(this.audioContext.currentTime + 0.15)
+  }
+
+  playReverseFault(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(300, this.audioContext.currentTime)
+    osc.frequency.linearRampToValueAtTime(150, this.audioContext.currentTime + 0.15)
+    osc.frequency.linearRampToValueAtTime(250, this.audioContext.currentTime + 0.3)
+    gain.gain.setValueAtTime(0.1, this.audioContext.currentTime)
+    gain.gain.setValueAtTime(0.12, this.audioContext.currentTime + 0.15)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.3)
+
+    const osc2 = this.audioContext.createOscillator()
+    const gain2 = this.audioContext.createGain()
+    osc2.type = 'square'
+    osc2.frequency.setValueAtTime(200, this.audioContext.currentTime + 0.1)
+    osc2.frequency.linearRampToValueAtTime(100, this.audioContext.currentTime + 0.25)
+    gain2.gain.setValueAtTime(0, this.audioContext.currentTime + 0.1)
+    gain2.gain.linearRampToValueAtTime(0.06, this.audioContext.currentTime + 0.12)
+    gain2.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.25)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.3)
+
+    osc2.connect(gain2)
+    gain2.connect(this.masterGain)
+    osc2.start(this.audioContext.currentTime + 0.1)
+    osc2.stop(this.audioContext.currentTime + 0.25)
+  }
+
+  playFreezeFault(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(800, this.audioContext.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.5)
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime)
+    gain.gain.linearRampToValueAtTime(0.12, this.audioContext.currentTime + 0.05)
+    gain.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.3)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.5)
+
+    const bufferSize = this.audioContext.sampleRate * 0.4
+    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * 0.3 * Math.pow(1 - i / bufferSize, 1.5)
+    }
+    const noise = this.audioContext.createBufferSource()
+    noise.buffer = buffer
+    const noiseGain = this.audioContext.createGain()
+    noiseGain.gain.setValueAtTime(0.08, this.audioContext.currentTime)
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.4)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.5)
+
+    noise.connect(noiseGain)
+    noiseGain.connect(this.masterGain)
+    noise.start()
+  }
+
+  playRepairStart(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(300, this.audioContext.currentTime)
+    osc.frequency.linearRampToValueAtTime(400, this.audioContext.currentTime + 0.15)
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime)
+    gain.gain.linearRampToValueAtTime(0.1, this.audioContext.currentTime + 0.05)
+    gain.gain.setValueAtTime(0.1, this.audioContext.currentTime + 0.1)
+    gain.gain.linearRampToValueAtTime(0.05, this.audioContext.currentTime + 0.15)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.15)
+  }
+
+  playRepairSuccess(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const notes = [523.25, 659.25, 783.99, 1046.5]
+    notes.forEach((freq, i) => {
+      const osc = this.audioContext!.createOscillator()
+      const gain = this.audioContext!.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const startTime = this.audioContext!.currentTime + i * 0.08
+      gain.gain.setValueAtTime(0, startTime)
+      gain.gain.linearRampToValueAtTime(0.15, startTime + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3)
+      osc.connect(gain)
+      gain.connect(this.masterGain!)
+      osc.start(startTime)
+      osc.stop(startTime + 0.3)
+    })
+  }
+
+  playRepairFail(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'sawtooth'
+    osc.frequency.setValueAtTime(200, this.audioContext.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(100, this.audioContext.currentTime + 0.2)
+    gain.gain.setValueAtTime(0.1, this.audioContext.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.2)
+
+    const osc2 = this.audioContext.createOscillator()
+    const gain2 = this.audioContext.createGain()
+    osc2.type = 'square'
+    osc2.frequency.setValueAtTime(150, this.audioContext.currentTime + 0.1)
+    osc2.frequency.exponentialRampToValueAtTime(80, this.audioContext.currentTime + 0.3)
+    gain2.gain.setValueAtTime(0, this.audioContext.currentTime + 0.1)
+    gain2.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.12)
+    gain2.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.3)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.2)
+
+    osc2.connect(gain2)
+    gain2.connect(this.masterGain)
+    osc2.start(this.audioContext.currentTime + 0.1)
+    osc2.stop(this.audioContext.currentTime + 0.3)
+  }
+
+  playInspect(): void {
+    if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
+
+    const osc = this.audioContext.createOscillator()
+    const gain = this.audioContext.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(600, this.audioContext.currentTime)
+    osc.frequency.setValueAtTime(800, this.audioContext.currentTime + 0.05)
+    osc.frequency.setValueAtTime(600, this.audioContext.currentTime + 0.1)
+    gain.gain.setValueAtTime(0, this.audioContext.currentTime)
+    gain.gain.linearRampToValueAtTime(0.08, this.audioContext.currentTime + 0.02)
+    gain.gain.setValueAtTime(0.08, this.audioContext.currentTime + 0.08)
+    gain.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + 0.15)
+
+    osc.connect(gain)
+    gain.connect(this.masterGain)
+    osc.start()
+    osc.stop(this.audioContext.currentTime + 0.15)
+  }
+
+  playGearFaultByType(faultType: string): void {
+    switch (faultType) {
+      case 'jam':
+        this.playJamFault()
+        break
+      case 'slip':
+        this.playSlipFault()
+        break
+      case 'reverse':
+        this.playReverseFault()
+        break
+      case 'freeze':
+        this.playFreezeFault()
+        break
+      default:
+        this.playGearFault()
+    }
+  }
+
   playAlignSuccess(): void {
     if (!this.ensureContext() || !this.audioContext || !this.masterGain) return
 

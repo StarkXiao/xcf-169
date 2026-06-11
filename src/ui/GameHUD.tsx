@@ -1,7 +1,18 @@
-import type { WeatherState, ActiveGearFault, PeriodConfig, WorkshopEffects, StormState, DiaryLevelObjective } from '../types'
+import type {
+  WeatherState,
+  ActiveGearFault,
+  PeriodConfig,
+  WorkshopEffects,
+  StormState,
+  DiaryLevelObjective,
+  RepairToolType,
+  GearFaultHint,
+  DifficultyLevel,
+} from '../types'
 import { FAULT_DESCRIPTIONS, WEATHER_DESCRIPTIONS } from '../game/NightPatrolSystem'
 import { workshopSystem } from '../game/WorkshopSystem'
 import { keeperDiarySystem } from '../game/KeeperDiarySystem'
+import { REPAIR_TOOLS, DIFFICULTY_CONFIGS } from '../game/DifficultySystem'
 
 interface GameHUDProps {
   timeLeft: number
@@ -22,6 +33,16 @@ interface GameHUDProps {
   onRollback?: () => void
   stormScoreImpact?: number
   diaryObjective?: DiaryLevelObjective | null
+  repairMode?: boolean
+  onToggleRepairMode?: () => void
+  selectedRepairTool?: RepairToolType | null
+  onSelectRepairTool?: (tool: RepairToolType | null) => void
+  activeRepairs?: { gearId: number; progress: number; toolType: string }[]
+  toolCooldowns?: Record<string, number>
+  faultHints?: GearFaultHint[]
+  difficulty?: DifficultyLevel
+  onDifficultyChange?: (level: DifficultyLevel) => void
+  showDifficultySelector?: boolean
 }
 
 function GameHUD({
@@ -43,15 +64,30 @@ function GameHUD({
   onRollback,
   stormScoreImpact = 0,
   diaryObjective,
+  repairMode = false,
+  onToggleRepairMode,
+  selectedRepairTool = null,
+  onSelectRepairTool,
+  activeRepairs = [],
+  toolCooldowns = {},
+  faultHints = [],
+  difficulty = 'normal',
+  onDifficultyChange,
+  showDifficultySelector = false,
 }: GameHUDProps) {
   const objective = diaryObjective ?? keeperDiarySystem.getCurrentLevelObjective()
   const material = workshopSystem.getCurrentMaterial()
   const activeTools = workshopSystem.getActiveToolConfigs()
   const effects = workshopEffects ?? workshopSystem.getEffects()
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
     return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  const formatMs = (ms: number) => {
+    return Math.ceil(ms / 1000) + 's'
   }
 
   const getTimerClass = () => {
@@ -64,6 +100,16 @@ function GameHUD({
   const weatherDesc = isPatrolMode && weather
     ? WEATHER_DESCRIPTIONS[weather.rain]
     : ''
+
+  const getFaultColor = (faultType: string) => {
+    switch (faultType) {
+      case 'jam': return '#ff6b6b'
+      case 'slip': return '#ffa94d'
+      case 'reverse': return '#b197fc'
+      case 'freeze': return '#74c0fc'
+      default: return '#ff6b6b'
+    }
+  }
 
   return (
     <div className="ui-overlay">
@@ -225,8 +271,118 @@ function GameHUD({
         </div>
       )}
 
+      {showDifficultySelector && (
+        <div className="difficulty-selector">
+          <div className="difficulty-label">难度</div>
+          <div className="difficulty-buttons">
+            {DIFFICULTY_CONFIGS.map((d) => (
+              <button
+                key={d.id}
+                className={`difficulty-btn ${difficulty === d.id ? 'active' : ''}`}
+                onClick={() => onDifficultyChange?.(d.id)}
+                title={d.description}
+              >
+                {d.displayName}
+                <span className="diff-multiplier">×{d.scoreMultiplier}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {faults.length > 0 && (
+        <div className="repair-panel">
+          <div className="repair-panel-header">
+            <span className="repair-title">🔧 检修面板</span>
+            <button
+              className={`repair-mode-toggle ${repairMode ? 'active' : ''}`}
+              onClick={onToggleRepairMode}
+            >
+              {repairMode ? '取消检修' : '开始检修'}
+            </button>
+          </div>
+
+          {repairMode && (
+            <div className="repair-tools">
+              {REPAIR_TOOLS.map((tool) => {
+                const cooldown = toolCooldowns[tool.id] ?? 0
+                const isOnCooldown = cooldown > 0
+                const isSelected = selectedRepairTool === tool.id
+                const hasEffectiveFault = faults.some((f) =>
+                  tool.effectiveFaults.includes(f.type),
+                )
+
+                return (
+                  <button
+                    key={tool.id}
+                    className={`repair-tool-btn ${isSelected ? 'selected' : ''} ${isOnCooldown ? 'cooldown' : ''} ${hasEffectiveFault ? 'effective' : ''}`}
+                    onClick={() => {
+                      if (!isOnCooldown && hasEffectiveFault) {
+                        onSelectRepairTool?.(isSelected ? null : tool.id)
+                      }
+                    }}
+                    disabled={isOnCooldown || !hasEffectiveFault}
+                    title={`${tool.displayName}: ${tool.description}`}
+                  >
+                    <span className="tool-icon">{tool.icon}</span>
+                    <span className="tool-name">{tool.displayName}</span>
+                    {isOnCooldown && (
+                      <span className="tool-cooldown">{formatMs(cooldown)}</span>
+                    )}
+                    <span className="tool-success-rate">成功率 {Math.round(tool.successRate * 100)}%</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {repairMode && selectedRepairTool && (
+            <div className="repair-hint">
+              点击有故障的齿轮进行检修
+            </div>
+          )}
+
+          {activeRepairs.length > 0 && (
+            <div className="active-repairs">
+              {activeRepairs.map((repair, i) => (
+                <div key={i} className="active-repair-item">
+                  <span className="repair-gear">齿轮#{repair.gearId}</span>
+                  <div className="repair-progress-bar">
+                    <div
+                      className="repair-progress-fill"
+                      style={{ width: `${repair.progress * 100}%` }}
+                    />
+                  </div>
+                  <span className="repair-percent">
+                    {Math.round(repair.progress * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {faultHints.length > 0 && (
+        <div className="fault-hints-panel">
+          <div className="fault-hints-title">💡 故障提示</div>
+          {faultHints.map((hint, i) => (
+            <div
+              key={i}
+              className={`fault-hint-item severity-${hint.severity}`}
+              style={{ borderLeftColor: getFaultColor(hint.faultType) }}
+            >
+              <span className="hint-gear">齿轮#{hint.gearId}</span>
+              <span className="hint-text">{hint.hintText}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="hint-panel">
-        {isPatrolMode
+        {repairMode
+          ? '检修模式：选择工具后点击故障齿轮进行修理。不同工具对不同故障效果不同。'
+          : isPatrolMode
           ? '钟楼巡夜：注意齿轮故障状态（卡滞无法转动、反转反向运转、打滑可能失效），按目标时刻校准大钟！'
           : `点击齿轮左半边倒退时间，右半边推进时间 · 大齿轮±${Math.round(60 * effects.efficiencyMultiplier)}分、中齿轮±${Math.round(15 * effects.efficiencyMultiplier)}分、小齿轮±${Math.round(5 * effects.efficiencyMultiplier)}分`}
       </div>
