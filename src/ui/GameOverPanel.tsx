@@ -1,4 +1,4 @@
-import type { GameResult } from '../types'
+import type { GameResult, Achievement, SpecialBell } from '../types'
 import { useState, useEffect } from 'react'
 import { keeperDiarySystem } from '../game/KeeperDiarySystem'
 import { BELL_GRADE_CONFIGS } from '../game/BellChimeEvaluationSystem'
@@ -11,9 +11,13 @@ interface GameOverPanelProps {
   onOpenWorkshop?: () => void
   onOpenBellChime?: () => void
   onOpenKeeperDiary?: () => void
+  onOpenAchievements?: () => void
+  newAchievements?: Achievement[]
+  newBells?: SpecialBell[]
+  isNewRecord?: boolean
 }
 
-function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpenBellChime, onOpenKeeperDiary }: GameOverPanelProps) {
+function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpenBellChime, onOpenKeeperDiary, onOpenAchievements, newAchievements = [], newBells = [], isNewRecord = false }: GameOverPanelProps) {
   const [newlyUnlockedDiaries, setNewlyUnlockedDiaries] = useState<DiaryEntry[]>([])
 
   useEffect(() => {
@@ -262,6 +266,71 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
           {onOpenKeeperDiary && (
             <button className="diary-unlock-button" onClick={onOpenKeeperDiary}>
               查看日记 →
+            </button>
+          )}
+        </div>
+      )}
+
+      {isNewRecord && (
+        <div className="record-new-section">
+          <div className="record-new-title">📜 钟楼名册 · 新纪录诞生！</div>
+          <div className="record-new-item">
+            <span className="record-new-icon">🏆</span>
+            <div className="record-new-info">
+              <div className="record-new-name">本次成绩已记入钟楼名册</div>
+              <div className="record-new-subtitle">得分：{result.score} 分</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {newAchievements.length > 0 && (
+        <div className="achievement-unlock-section">
+          <div className="achievement-unlock-title">🏆 成就簿 · 新成就解锁！</div>
+          {newAchievements.slice(0, 3).map((achievement) => (
+            <div key={achievement.id} className="achievement-unlock-item">
+              <span className="achievement-unlock-icon" style={{ color: achievement.rarity === 'legendary' ? '#ff9800' : achievement.rarity === 'epic' ? '#9c27b0' : achievement.rarity === 'rare' ? '#2196f3' : '#4caf50' }}>
+                {achievement.icon}
+              </span>
+              <div className="achievement-unlock-info">
+                <div className="achievement-unlock-name">{achievement.displayName}</div>
+                <div className="achievement-unlock-subtitle">{achievement.description}</div>
+              </div>
+            </div>
+          ))}
+          {onOpenAchievements && (
+            <button className="achievement-unlock-button" onClick={onOpenAchievements}>
+              查看成就簿 →
+            </button>
+          )}
+        </div>
+      )}
+
+      {newBells.length > 0 && (
+        <div className="bell-collect-section">
+          <div className="bell-collect-title">🔔 特殊钟声 · 新钟唤醒！</div>
+          {newBells.map((bell) => (
+            <div key={bell.id} className="bell-collect-item">
+              <span
+                className="bell-collect-icon"
+                style={{
+                  color: bell.color,
+                  filter: `drop-shadow(0 0 8px ${bell.color}80)`,
+                }}
+              >
+                {bell.icon}
+              </span>
+              <div className="bell-collect-info">
+                <div className="bell-collect-name" style={{ color: bell.color }}>
+                  {bell.displayName}
+                </div>
+                <div className="bell-collect-subtitle">{bell.description}</div>
+              </div>
+            </div>
+          ))}
+          {onOpenAchievements && (
+            <button className="bell-collect-button" onClick={onOpenAchievements}>
+              查看特殊钟声 →
             </button>
           )}
         </div>

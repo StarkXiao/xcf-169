@@ -21,8 +21,10 @@ import MuseumGameView from './ui/museum/MuseumGameView'
 import LevelSharePanel from './ui/LevelSharePanel'
 import FestivalActivityPanel from './ui/FestivalActivityPanel'
 import KeeperDiaryPanel from './ui/KeeperDiaryPanel'
+import ClocktowerLedgerPanel from './ui/ClocktowerLedgerPanel'
+import AchievementBookPanel from './ui/AchievementBookPanel'
 import ContinuousShiftResultPanel from './ui/ContinuousShiftResultPanel'
-import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
+import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult, Achievement, SpecialBell } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import type { ShiftGameResult } from './types/continuousShift'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
@@ -30,15 +32,19 @@ import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 import { levelShareSystem } from './game/LevelShareSystem'
 import { keeperDiarySystem } from './game/KeeperDiarySystem'
+import { clocktowerRecordSystem } from './game/ClocktowerRecordSystem'
+import { achievementSystem } from './game/AchievementSystem'
 import { ContinuousShiftSystem } from './game/ContinuousShiftSystem'
 import './styles/roguelike.css'
 import './styles/museum.css'
 import './styles/level-share.css'
 import './styles/keeper-diary.css'
+import './styles/clocktower-ledger.css'
+import './styles/achievement-book.css'
 import './styles/continuousShift.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival' | 'keeperDiary' | 'continuousShift' | 'continuousShiftResult'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival' | 'keeperDiary' | 'ledger' | 'achievements' | 'continuousShift' | 'continuousShiftResult'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -52,6 +58,9 @@ function App() {
   const [continuousShiftResult, setContinuousShiftResult] = useState<ShiftGameResult | null>(null)
   const [loadSavedShift, setLoadSavedShift] = useState(false)
   const [currentSharedLevelId, setCurrentSharedLevelId] = useState<string | null>(null)
+  const [newUnlockedAchievements, setNewUnlockedAchievements] = useState<Achievement[]>([])
+  const [newCollectedBells, setNewCollectedBells] = useState<SpecialBell[]>([])
+  const [isNewRecord, setIsNewRecord] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const goTo = useCallback((v: AppView) => setView(v), [])
@@ -87,8 +96,36 @@ function App() {
       hadFaults
     )
 
+    const bellEvaluation = (result as any).bellEvaluation
+
+    const recordResult = clocktowerRecordSystem.recordGameResult(
+      result,
+      currentMode,
+      {
+        levelId: customLevel ? 'custom' : undefined,
+        levelName: customLevel?.name,
+        evaluation: bellEvaluation,
+        timeLimit: totalTime,
+      }
+    )
+    setIsNewRecord(recordResult.isNewBest)
+
+    const isPatrolMode = (result as GameResult).isPatrolMode ?? false
+    const achievementResult = achievementSystem.recordGameResult(
+      result as GameResult,
+      {
+        evaluation: bellEvaluation,
+        timeUsed,
+        deviation: (result as any).totalDeviation ?? 0,
+        isPatrolComplete: isPatrolMode && result.success,
+        gameMode: currentMode,
+      }
+    )
+    setNewUnlockedAchievements(achievementResult.achievements.map(a => a.achievement))
+    setNewCollectedBells(achievementResult.newBells)
+
     goTo('result')
-  }, [goTo, currentSharedLevelId, customLevel])
+  }, [goTo, currentSharedLevelId, customLevel, currentMode])
 
   const handleRestart = useCallback(() => {
     setGameResult(null)
@@ -249,6 +286,14 @@ function App() {
   const handleOpenKeeperDiary = useCallback(() => goTo('keeperDiary'), [goTo])
   const handleCloseKeeperDiary = useCallback(() => goTo('menu'), [goTo])
 
+  const handleOpenLedger = useCallback(() => goTo('ledger'), [goTo])
+  const handleCloseLedger = useCallback(() => goTo('menu'), [goTo])
+
+  const handleOpenAchievements = useCallback(() => goTo('achievements'), [goTo])
+  const handleCloseAchievements = useCallback(() => goTo('menu'), [goTo])
+
+  const handleOpenAchievementsFromResult = useCallback(() => goTo('achievements'), [goTo])
+
   const handlePlaySharedLevel = useCallback((levelData: EditorLevelConfig, sharedLevelId: string) => {
     try {
       const loaded = loadEditorLevel(levelData)
@@ -326,9 +371,11 @@ function App() {
   const showLevelShare = view === 'levelShare'
   const showFestival = view === 'festival'
   const showKeeperDiary = view === 'keeperDiary'
+  const showLedger = view === 'ledger'
+  const showAchievements = view === 'achievements'
   const showContinuousShift = view === 'continuousShift'
   const showContinuousShiftResult = view === 'continuousShiftResult'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival && !showKeeperDiary && !showContinuousShift && !showContinuousShiftResult
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival && !showKeeperDiary && !showLedger && !showAchievements && !showContinuousShift && !showContinuousShiftResult
 
   const hasSavedShiftGame = new ContinuousShiftSystem(7).hasSavedGame()
 
@@ -356,6 +403,8 @@ function App() {
           onOpenLevelShare={handleOpenLevelShare}
           onOpenFestival={handleOpenFestival}
           onOpenKeeperDiary={handleOpenKeeperDiary}
+          onOpenLedger={handleOpenLedger}
+          onOpenAchievements={handleOpenAchievements}
           onStartContinuousShift={handleStartContinuousShift}
           onContinueContinuousShift={handleContinueContinuousShift}
           hasSavedShiftGame={hasSavedShiftGame}
@@ -382,6 +431,10 @@ function App() {
           onOpenWorkshop={handleOpenWorkshop}
           onOpenBellChime={handleOpenBellChime}
           onOpenKeeperDiary={handleOpenKeeperDiary}
+          onOpenAchievements={handleOpenAchievementsFromResult}
+          newAchievements={newUnlockedAchievements}
+          newBells={newCollectedBells}
+          isNewRecord={isNewRecord}
         />
       )}
       {showResult && !showWorkshop && !showBellChime && isMultiClockResult(gameResult) && (
@@ -459,6 +512,12 @@ function App() {
       )}
       {showKeeperDiary && (
         <KeeperDiaryPanel onClose={handleCloseKeeperDiary} />
+      )}
+      {showLedger && (
+        <ClocktowerLedgerPanel onClose={handleCloseLedger} />
+      )}
+      {showAchievements && (
+        <AchievementBookPanel onClose={handleCloseAchievements} />
       )}
       {showContinuousShift && (
         <ContinuousShiftGame

@@ -1,6 +1,8 @@
 import type { GameMode } from '../types'
 import { workshopSystem } from '../game/WorkshopSystem'
 import { keeperDiarySystem } from '../game/KeeperDiarySystem'
+import { achievementSystem } from '../game/AchievementSystem'
+import { clocktowerRecordSystem } from '../game/ClocktowerRecordSystem'
 import { useState, useEffect } from 'react'
 
 interface StartScreenProps {
@@ -17,19 +19,30 @@ interface StartScreenProps {
   onOpenLevelShare: () => void
   onOpenFestival: () => void
   onOpenKeeperDiary: () => void
+  onOpenLedger: () => void
+  onOpenAchievements: () => void
   onStartContinuousShift: () => void
   onContinueContinuousShift: () => void
   hasSavedShiftGame: boolean
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival, onOpenKeeperDiary, onStartContinuousShift, onContinueContinuousShift, hasSavedShiftGame }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival, onOpenKeeperDiary, onOpenLedger, onOpenAchievements, onStartContinuousShift, onContinueContinuousShift, hasSavedShiftGame }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
   const [diaryNewCount, setDiaryNewCount] = useState(0)
+  const [achievementNewCount, setAchievementNewCount] = useState(0)
+  const [recordCount, setRecordCount] = useState(0)
 
   useEffect(() => {
     const newEntries = keeperDiarySystem.getNewEntries()
     setDiaryNewCount(newEntries.length)
+    
+    const achievementProgress = achievementSystem.getAchievementProgress()
+    const bellProgress = achievementSystem.getBellCollectionProgress()
+    setAchievementNewCount(achievementProgress.unlocked + bellProgress.collected)
+    
+    const stats = clocktowerRecordSystem.getStatsSummary()
+    setRecordCount(stats.totalGamesPlayed)
   }, [])
 
   const formatScore = (score: number) => {
@@ -169,6 +182,34 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
           📖 守钟人日记
           {diaryNewCount > 0 && (
             <span className="diary-notification-badge">{diaryNewCount}</span>
+          )}
+        </button>
+        <button
+          className="editor-entry-btn ledger-entry-btn"
+          onClick={onOpenLedger}
+          style={{
+            backgroundColor: '#1a2a1a',
+            borderColor: '#7ab87a',
+            position: 'relative',
+          }}
+        >
+          📜 钟楼名册
+          {recordCount > 0 && (
+            <span className="ledger-notification-badge">{recordCount}</span>
+          )}
+        </button>
+        <button
+          className="editor-entry-btn achievement-entry-btn"
+          onClick={onOpenAchievements}
+          style={{
+            backgroundColor: '#2a1a2a',
+            borderColor: '#c77dbb',
+            position: 'relative',
+          }}
+        >
+          🏆 成就簿
+          {achievementNewCount > 0 && (
+            <span className="achievement-notification-badge">{achievementNewCount}</span>
           )}
         </button>
         {onImportLevel && (

@@ -1099,3 +1099,153 @@ export interface BellChimeEvaluationState {
   lastActionTime: number
   actions: GameplayActionRecord[]
 }
+
+// ==================== 钟楼名册系统 (Clocktower Record System) ====================
+
+export type RecordGameMode = 'classic' | 'patrol' | 'multiclock' | 'training' | 'roguelike' | 'duoCoop' | 'continuousShift' | 'custom'
+
+export interface CalibrationRecord {
+  id: string
+  timestamp: number
+  gameMode: RecordGameMode
+  success: boolean
+  score: number
+  timeUsed: number
+  timeLimit: number
+  deviationMinutes: number
+  grade?: BellChimeGrade
+  isPerfect: boolean
+  hadFaults: boolean
+  highestCombo: number
+  perfectSnaps: number
+  totalRotations: number
+  faultCount: number
+  levelId?: string
+  levelName?: string
+  difficulty?: DifficultyLevel
+  periodsCleared?: number
+  totalPeriods?: number
+  pathSteps?: number
+  gearActions?: Array<{
+    gearId: number
+    direction: 1 | -1
+    timestamp: number
+  }>
+  specialBellsCollected?: string[]
+  weatherConditions?: WeatherIntensity
+}
+
+export interface BestPathRecord {
+  id: string
+  levelId: string
+  levelName: string
+  gameMode: RecordGameMode
+  bestScore: number
+  bestTime: number
+  bestDeviation: number
+  bestGrade?: BellChimeGrade
+  isPerfect: boolean
+  attempts: number
+  firstClearedAt: number
+  lastPlayedAt: number
+  bestPathActions?: Array<{
+    gearId: number
+    direction: 1 | -1
+    order: number
+  }>
+}
+
+export interface ClocktowerLedgerState {
+  records: CalibrationRecord[]
+  bestPaths: BestPathRecord[]
+  totalGamesPlayed: number
+  totalSuccesses: number
+  totalScoreEarned: number
+  totalPerfectClears: number
+  totalPlayTimeSeconds: number
+  highestScore: number
+  fastestClearSeconds: number
+  lowestDeviationMinutes: number
+  highestCombo: number
+  mostPerfectSnaps: number
+}
+
+// ==================== 成就簿系统 (Achievement System) ====================
+
+export type AchievementCategory = 'score' | 'speed' | 'accuracy' | 'combo' | 'endurance' | 'collection' | 'special' | 'story'
+
+export type AchievementRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary'
+
+export type SpecialBellType =
+  | 'golden_bell'
+  | 'silver_bell'
+  | 'bronze_bell'
+  | 'phantom_bell'
+  | 'eclipse_bell'
+  | 'dawn_bell'
+  | 'dusk_bell'
+  | 'storm_bell'
+  | 'harmony_bell'
+  | 'echo_bell'
+
+export interface SpecialBell {
+  id: SpecialBellType
+  name: string
+  displayName: string
+  description: string
+  icon: string
+  color: string
+  rarity: AchievementRarity
+  unlockCondition: string
+  isCollected: boolean
+  collectedAt?: number
+}
+
+export interface Achievement {
+  id: string
+  name: string
+  displayName: string
+  description: string
+  icon: string
+  category: AchievementCategory
+  rarity: AchievementRarity
+  unlockCondition: string
+  targetValue?: number
+  currentValue?: number
+  isUnlocked: boolean
+  unlockedAt?: number
+  reward?: {
+    type: 'score' | 'bell_preset' | 'material' | 'tool' | 'badge'
+    id?: string
+    value?: number
+  }
+}
+
+export interface AchievementBookState {
+  unlockedAchievementIds: string[]
+  unlockedAtTimestamps: Record<string, number>
+  collectedBellIds: SpecialBellType[]
+  collectedBellTimestamps: Record<SpecialBellType, number>
+  stats: {
+    totalGamesPlayed: number
+    totalScore: number
+    totalPerfectClears: number
+    totalPlayTimeSeconds: number
+    highestCombo: number
+    totalPerfectSnaps: number
+    totalFaultsHandled: number
+    consecutiveWins: number
+    bestConsecutiveWins: number
+    fastestClearSeconds: number
+    lowestDeviationMinutes: number
+    patrolNightsCompleted: number
+    roguelikeFloorsCleared: number
+    levelsCreated: number
+    totalBellsRung: number
+  }
+}
+
+export interface AchievementUnlockResult {
+  achievement: Achievement
+  isNew: boolean
+}
