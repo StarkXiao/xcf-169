@@ -1,4 +1,4 @@
-import type { ClockTime, WeatherState, ActiveGearFault } from './index'
+import type { ClockTime, PeriodConfig, WeatherState, ActiveGearFault } from './index'
 
 export type ShiftResourceType = 'oil' | 'coal' | 'repairKit' | 'coffee' | 'windCharge'
 
@@ -285,4 +285,21 @@ export const MAX_RESOURCES: ShiftResourceState = {
   repairKit: 5,
   coffee: 8,
   windCharge: 6,
+}
+
+export interface ShiftRuntimeSaveData {
+  periodIndex: number
+  totalTime: number
+  timeLeft: number
+  currentTime: ClockTime
+  targetTime: ClockTime
+  weather: WeatherState
+  faults: ActiveGearFault[]
+  currentScore: number
+  deviationAccumulated: number
+  deviationSampleCount: number
+  resourcesSpentThisNight: Partial<ShiftResourceState>
+  nightStartTime: number
+  activeEffects: ActiveShiftEffect[]
+  periodConfig: PeriodConfig | null
 }

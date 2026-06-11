@@ -21,6 +21,7 @@ import type {
   ShiftGameResult,
   ShiftResourceType,
   ActiveShiftEffect,
+  ShiftRuntimeSaveData,
 } from '../types/continuousShift'
 import type {
   ClockTime,
@@ -255,9 +256,34 @@ function ContinuousShiftGame({
     if (success) {
       resourcesSpentThisNightRef.current[resourceType] =
         (resourcesSpentThisNightRef.current[resourceType] || 0) + 1
+
+      if (resourceType === 'coal') {
+        timerRef.current?.addTime(30)
+        const newTimeLeft = timerRef.current?.getTimeLeft() || 0
+        setTimeLeft(newTimeLeft)
+      }
     }
     return success
   }, [])
+
+  const collectRuntimeSaveData = useCallback((): ShiftRuntimeSaveData => {
+    return {
+      periodIndex,
+      totalTime,
+      timeLeft: timerRef.current?.getTimeLeft() || timeLeft,
+      currentTime: { ...currentTime },
+      targetTime: { ...targetTime },
+      weather: { ...weather },
+      faults: [...faults],
+      currentScore,
+      deviationAccumulated: deviationAccumulatorRef.current || 0,
+      deviationSampleCount: deviationSampleCountRef.current || 0,
+      resourcesSpentThisNight: { ...resourcesSpentThisNightRef.current },
+      nightStartTime: nightStartTimeRef.current || Date.now(),
+      activeEffects: [...activeEffects],
+      periodConfig: currentPeriod,
+    }
+  }, [periodIndex, totalTime, timeLeft, currentTime, targetTime, weather, faults, currentScore, currentPeriod, activeEffects])
 
   const handleTogglePause = useCallback(() => {
     const shift = shiftSystemRef.current
@@ -266,13 +292,15 @@ function ContinuousShiftGame({
     if (phase === 'playing') {
       shift.pause()
       timerRef.current?.pause()
+      const runtimeData = collectRuntimeSaveData()
+      shift.saveToStorage(runtimeData)
       setShowPauseMenu(true)
     } else if (phase === 'paused') {
       shift.resume()
       timerRef.current?.resume()
       setShowPauseMenu(false)
     }
-  }, [phase])
+  }, [phase, collectRuntimeSaveData])
 
   const handleResumeFromPause = useCallback(() => {
     const shift = shiftSystemRef.current
@@ -384,9 +412,34 @@ function ContinuousShiftGame({
     })
     shiftSystemRef.current = shift
 
+    let loadedRuntimeData: ShiftRuntimeSaveData | null = null
+
     if (loadSaved) {
       const loaded = shift.loadFromStorage()
-      if (!loaded) {
+      if (loaded.success && loaded.runtimeData) {
+        loadedRuntimeData = loaded.runtimeData
+        const rt = loadedRuntimeData
+        setPeriodIndex(rt.periodIndex)
+        setTotalTime(rt.totalTime)
+        setTimeLeft(rt.timeLeft)
+        setCurrentTime({ ...rt.currentTime })
+        setTargetTime({ ...rt.targetTime })
+        setWeather({ ...rt.weather })
+        setFaults([...rt.faults])
+        setCurrentScore(rt.currentScore)
+        setActiveEffects([...rt.activeEffects])
+        if (rt.periodConfig) {
+          setCurrentPeriod(rt.periodConfig)
+        }
+        deviationAccumulatorRef.current = rt.deviationAccumulated
+        deviationSampleCountRef.current = rt.deviationSampleCount
+        resourcesSpentThisNightRef.current = { ...rt.resourcesSpentThisNight }
+        nightStartTimeRef.current = rt.nightStartTime
+
+        setRunState(shift.getState())
+      } else if (loaded.success) {
+        setRunState(shift.getState())
+      } else {
         setRunState(shift.getState())
       }
     } else {
@@ -552,24 +605,50 @@ function ContinuousShiftGame({
 
         const curr = gearSystem.getCurrentTime()
         const tgt = gearSystem.getTargetTime()
-        setCurrentTime({ ...curr })
-        setTargetTime({ ...tgt })
         scene.updateClockHands(curr, true)
         scene.setTargetTime(tgt)
 
-        const period = shift.getCurrentPeriod()
-        scene.setPeriodBackground(period.id)
-        scene.setWeather(period.weather)
-        setWeather(period.weather)
-        scene.showPeriodBanner(`${period.displayName} · ${period.clockTime}`)
+        if (loadSaved && loadedRuntimeData) {
+          const rt = loadedRuntimeData
+          timer.reset(rt.totalTime)
+          timer.subtractTime(rt.totalTime - rt.timeLeft)
+          gearSystem.setTargetTime(rt.targetTime)
+          scene.setTargetTime(rt.targetTime)
 
-        const initialFaults = patrol.generateFaults()
-        setFaults(initialFaults)
-        initialFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+          if (rt.periodConfig) {
+            scene.setPeriodBackground(rt.periodConfig.id)
+            scene.setWeather(rt.periodConfig.weather)
+            sound.setWeatherAudio(rt.periodConfig.weather.rain, rt.periodConfig.weather.wind)
+          }
+
+          rt.faults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+
+          setCurrentTime({ ...rt.currentTime })
+          setTargetTime({ ...rt.targetTime })
+        } else {
+          const period = shift.getCurrentPeriod()
+          scene.setPeriodBackground(period.id)
+          scene.setWeather(period.weather)
+          setWeather(period.weather)
+          scene.showPeriodBanner(`${period.displayName} · ${period.clockTime}`)
+          sound.setWeatherAudio(period.weather.rain, period.weather.wind)
+
+          gearSystem.regenerateTargetTimeForPatrol()
+          const newTarget = gearSystem.getTargetTime()
+          scene.setTargetTime(newTarget)
+          setTargetTime({ ...newTarget })
+          setCurrentTime({ ...gearSystem.getCurrentTime() })
+
+          const initialFaults = patrol.generateFaults()
+          setFaults(initialFaults)
+          initialFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
+        }
 
         const interval = setInterval(() => {
           const activeFaults = patrol.getActiveFaults().filter((f) => f.expiresAt > performance.now())
-          setFaults(activeFaults)
+          if (!loadSaved || !loadedRuntimeData) {
+            setFaults(activeFaults)
+          }
           activeFaults.forEach((f) => scene.setGearFault(f.gearId, f.type))
           patrol
             .getActiveFaults()
@@ -579,9 +658,10 @@ function ContinuousShiftGame({
         ;(window as unknown as { _shiftFaultInterval?: number })._shiftFaultInterval = interval
 
         bellChimeEvaluationSystem.startSession()
-        shift.startAutoSave()
+        shift.startAutoSave(30000, collectRuntimeSaveData)
 
         if (loadSaved && shift.getPhase() === 'paused') {
+          timer.pause()
           setShowPauseMenu(true)
         }
       } else {

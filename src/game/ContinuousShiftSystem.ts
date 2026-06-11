@@ -7,6 +7,7 @@ import type {
   ShiftPhase,
   ShiftResourceType,
   ActiveShiftEffect,
+  ShiftRuntimeSaveData,
 } from '../types/continuousShift'
 import {
   SHIFT_NIGHT_CONFIGS,
@@ -454,10 +455,11 @@ export class ContinuousShiftSystem {
     }
   }
 
-  saveToStorage() {
+  saveToStorage(runtimeData?: ShiftRuntimeSaveData) {
     try {
       const saveData = {
         state: this.state,
+        runtimeData,
         savedAt: Date.now(),
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(saveData))
@@ -466,12 +468,12 @@ export class ContinuousShiftSystem {
     }
   }
 
-  loadFromStorage(): boolean {
+  loadFromStorage(): { success: boolean; runtimeData?: ShiftRuntimeSaveData } {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) return false
+      if (!raw) return { success: false }
       const saveData = JSON.parse(raw)
-      if (!saveData.state) return false
+      if (!saveData.state) return { success: false }
 
       this.state = saveData.state
       this.state.phase = 'paused'
@@ -479,10 +481,13 @@ export class ContinuousShiftSystem {
       this.state.pauseReason = 'saved'
       this.emitStateChange()
       this.emitPhaseChange()
-      return true
+      return {
+        success: true,
+        runtimeData: saveData.runtimeData,
+      }
     } catch (e) {
       console.error('Failed to load continuous shift:', e)
-      return false
+      return { success: false }
     }
   }
 
@@ -498,11 +503,12 @@ export class ContinuousShiftSystem {
     }
   }
 
-  startAutoSave(intervalMs: number = 30000) {
+  startAutoSave(intervalMs: number = 30000, getRuntimeData?: () => ShiftRuntimeSaveData) {
     if (this.saveInterval) clearInterval(this.saveInterval)
     this.saveInterval = window.setInterval(() => {
       if (this.state.phase === 'playing') {
-        this.saveToStorage()
+        const runtimeData = getRuntimeData ? getRuntimeData() : undefined
+        this.saveToStorage(runtimeData)
       }
     }, intervalMs)
   }
