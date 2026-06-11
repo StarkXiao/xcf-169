@@ -4,7 +4,6 @@ import type {
   FestivalConfig,
   FestivalTheme,
   FestivalActivityPeriod,
-  FestivalPeriodRules,
   FestivalPeriodReward,
   FestivalLeaderboardEntry,
   FestivalPlayerRecord,

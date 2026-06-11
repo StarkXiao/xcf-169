@@ -3,9 +3,6 @@ import { festivalActivitySystem, FESTIVAL_CONFIGS } from '../game/FestivalActivi
 import type {
   FestivalId,
   FestivalSeason,
-  FestivalConfig,
-  FestivalActivityPeriod,
-  FestivalTheme,
 } from '../types'
 
 interface FestivalActivityPanelProps {
@@ -25,6 +22,7 @@ function FestivalActivityPanel({ onClose }: FestivalActivityPanelProps) {
   const [state, setState] = useState(festivalActivitySystem.getState())
   const [activeTab, setActiveTab] = useState<TabType>('festival')
   const [selectedSeason, setSelectedSeason] = useState<FestivalSeason | 'all'>('all')
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('')
 
   const refresh = () => {
     setState(festivalActivitySystem.getState())
@@ -38,6 +36,15 @@ function FestivalActivityPanel({ onClose }: FestivalActivityPanelProps) {
     () => festivalActivitySystem.getCurrentFestival(),
     [state.currentFestivalId]
   )
+
+  useEffect(() => {
+    if (state.currentFestivalId) {
+      const periods = festivalActivitySystem.getPeriodsForFestival(state.currentFestivalId)
+      if (periods.length > 0 && !periods.find((p) => p.id === selectedPeriodId)) {
+        setSelectedPeriodId(periods[0].id)
+      }
+    }
+  }, [state.currentFestivalId, selectedPeriodId])
 
   const theme = useMemo(
     () => currentFestival?.theme ?? FESTIVAL_CONFIGS[0].theme,
@@ -422,9 +429,6 @@ function FestivalActivityPanel({ onClose }: FestivalActivityPanelProps) {
 
     const periods = festivalActivitySystem.getPeriodsForFestival(state.currentFestivalId)
     const t = festival.theme
-    const [selectedPeriodId, setSelectedPeriodId] = useState<string>(
-      periods.length > 0 ? periods[0].id : ''
-    )
 
     const leaderboard = selectedPeriodId
       ? festivalActivitySystem.getLeaderboard(state.currentFestivalId!, selectedPeriodId)
