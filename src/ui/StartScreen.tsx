@@ -1,5 +1,7 @@
 import type { GameMode } from '../types'
 import { workshopSystem } from '../game/WorkshopSystem'
+import { keeperDiarySystem } from '../game/KeeperDiarySystem'
+import { useState, useEffect } from 'react'
 
 interface StartScreenProps {
   onStart: (mode: GameMode) => void
@@ -14,11 +16,18 @@ interface StartScreenProps {
   onStartMuseum: () => void
   onOpenLevelShare: () => void
   onOpenFestival: () => void
+  onOpenKeeperDiary: () => void
 }
 
-function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival }: StartScreenProps) {
+function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, onImportLevel, onOpenAdmin, onOpenTraining, onStartRoguelike, onStartDuoCoop, onStartMuseum, onOpenLevelShare, onOpenFestival, onOpenKeeperDiary }: StartScreenProps) {
   const totalScore = workshopSystem.getTotalScoreEarned()
   const currentMaterial = workshopSystem.getCurrentMaterial()
+  const [diaryNewCount, setDiaryNewCount] = useState(0)
+
+  useEffect(() => {
+    const newEntries = keeperDiarySystem.getNewEntries()
+    setDiaryNewCount(newEntries.length)
+  }, [])
 
   const formatScore = (score: number) => {
     if (score >= 10000) return `${(score / 10000).toFixed(1)}万`
@@ -133,6 +142,20 @@ function StartScreen({ onStart, onOpenWorkshop, onOpenBellChime, onOpenEditor, o
         </button>
         <button className="editor-entry-btn festival-entry-btn" onClick={onOpenFestival}>
           🎊 节庆活动
+        </button>
+        <button
+          className="editor-entry-btn keeper-diary-entry-btn"
+          onClick={onOpenKeeperDiary}
+          style={{
+            backgroundColor: '#2a1f0a',
+            borderColor: '#c9a96a',
+            position: 'relative',
+          }}
+        >
+          📖 守钟人日记
+          {diaryNewCount > 0 && (
+            <span className="diary-notification-badge">{diaryNewCount}</span>
+          )}
         </button>
         {onImportLevel && (
           <button className="editor-entry-btn" onClick={onImportLevel} style={{ backgroundColor: '#1a3a2a', borderColor: '#3d7a5a' }}>

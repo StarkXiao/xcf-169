@@ -19,18 +19,21 @@ import RoguelikeResultPanel from './ui/RoguelikeResultPanel'
 import MuseumGameView from './ui/museum/MuseumGameView'
 import LevelSharePanel from './ui/LevelSharePanel'
 import FestivalActivityPanel from './ui/FestivalActivityPanel'
+import KeeperDiaryPanel from './ui/KeeperDiaryPanel'
 import type { GameResult, GameMode, MultiClockGameResult, EditorLevelConfig, TrainingLesson, TrainingGameResult, DuoCoopGameResult } from './types'
 import type { RoguelikeGameResult } from './types/roguelike'
 import { loadEditorLevel, loadCustomLevelFromStorage, saveCustomLevelToStorage, type LoadedLevel } from './game/LevelLoader'
 import { workshopSystem } from './game/WorkshopSystem'
 import { bellChimeSystem } from './game/BellChimeSystem'
 import { levelShareSystem } from './game/LevelShareSystem'
+import { keeperDiarySystem } from './game/KeeperDiarySystem'
 import './styles/roguelike.css'
 import './styles/museum.css'
 import './styles/level-share.css'
+import './styles/keeper-diary.css'
 
 type AnyGameResult = GameResult | MultiClockGameResult | DuoCoopGameResult
-type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival'
+type AppView = 'menu' | 'game' | 'result' | 'workshop' | 'bellchime' | 'editor' | 'customGame' | 'admin' | 'training' | 'trainingGame' | 'trainingReview' | 'roguelike' | 'roguelikeResult' | 'duoCoop' | 'duoCoopResult' | 'museum' | 'levelShare' | 'festival' | 'keeperDiary'
 
 function App() {
   const [view, setView] = useState<AppView>('menu')
@@ -58,13 +61,25 @@ function App() {
     workshopSystem.recordGameScore(result.score)
     bellChimeSystem.recordScore(result.score)
     bellChimeSystem.resetTriggers()
-    
+
     if (currentSharedLevelId && result.success && customLevel) {
       const timeUsed = customLevel.duration - result.timeLeft
       const deviation = 'totalDeviation' in result ? result.totalDeviation : 0
       levelShareSystem.recordClear(currentSharedLevelId, result.score, Math.max(1, timeUsed), deviation)
     }
-    
+
+    const totalTime = customLevel ? customLevel.duration : 120
+    const timeUsed = totalTime - result.timeLeft
+    const isPerfect = result.score >= 2500
+    const hadFaults = result.score < 2000 && result.success
+    keeperDiarySystem.recordGameResult(
+      result.success,
+      result.score,
+      Math.max(1, timeUsed),
+      isPerfect,
+      hadFaults
+    )
+
     goTo('result')
   }, [goTo, currentSharedLevelId, customLevel])
 
@@ -192,6 +207,9 @@ function App() {
   const handleOpenFestival = useCallback(() => goTo('festival'), [goTo])
   const handleCloseFestival = useCallback(() => goTo('menu'), [goTo])
 
+  const handleOpenKeeperDiary = useCallback(() => goTo('keeperDiary'), [goTo])
+  const handleCloseKeeperDiary = useCallback(() => goTo('menu'), [goTo])
+
   const handlePlaySharedLevel = useCallback((levelData: EditorLevelConfig, sharedLevelId: string) => {
     try {
       const loaded = loadEditorLevel(levelData)
@@ -268,7 +286,8 @@ function App() {
   const showMuseum = view === 'museum'
   const showLevelShare = view === 'levelShare'
   const showFestival = view === 'festival'
-  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival
+  const showKeeperDiary = view === 'keeperDiary'
+  const showMenu = view === 'menu' && !showGame && !showCustomGame && !showResult && !showWorkshop && !showBellChime && !showEditor && !showAdmin && !showTraining && !showTrainingGame && !showTrainingReview && !showRoguelike && !showRoguelikeResult && !showDuoCoop && !showDuoCoopResult && !showMuseum && !showLevelShare && !showFestival && !showKeeperDiary
 
   return (
     <div className="app-container">
@@ -293,6 +312,7 @@ function App() {
           onStartMuseum={handleStartMuseum}
           onOpenLevelShare={handleOpenLevelShare}
           onOpenFestival={handleOpenFestival}
+          onOpenKeeperDiary={handleOpenKeeperDiary}
         />
       )}
       {showGame && currentMode !== 'multiclock' && (
@@ -315,6 +335,7 @@ function App() {
           onBackToMenu={handleBackToMenu}
           onOpenWorkshop={handleOpenWorkshop}
           onOpenBellChime={handleOpenBellChime}
+          onOpenKeeperDiary={handleOpenKeeperDiary}
         />
       )}
       {showResult && !showWorkshop && !showBellChime && isMultiClockResult(gameResult) && (
@@ -389,6 +410,9 @@ function App() {
       )}
       {showFestival && (
         <FestivalActivityPanel onClose={handleCloseFestival} />
+      )}
+      {showKeeperDiary && (
+        <KeeperDiaryPanel onClose={handleCloseKeeperDiary} />
       )}
     </div>
   )

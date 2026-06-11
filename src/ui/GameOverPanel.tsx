@@ -1,4 +1,7 @@
 import type { GameResult } from '../types'
+import { useState, useEffect } from 'react'
+import { keeperDiarySystem } from '../game/KeeperDiarySystem'
+import type { DiaryEntry } from '../types'
 
 interface GameOverPanelProps {
   result: GameResult
@@ -6,9 +9,17 @@ interface GameOverPanelProps {
   onBackToMenu?: () => void
   onOpenWorkshop?: () => void
   onOpenBellChime?: () => void
+  onOpenKeeperDiary?: () => void
 }
 
-function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpenBellChime }: GameOverPanelProps) {
+function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpenBellChime, onOpenKeeperDiary }: GameOverPanelProps) {
+  const [newlyUnlockedDiaries, setNewlyUnlockedDiaries] = useState<DiaryEntry[]>([])
+
+  useEffect(() => {
+    const diaries = keeperDiarySystem.getNewEntries()
+    setNewlyUnlockedDiaries(diaries.slice(0, 3))
+  }, [result])
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
@@ -106,6 +117,27 @@ function GameOverPanel({ result, onRestart, onBackToMenu, onOpenWorkshop, onOpen
           </span>
         </div>
       </div>
+
+      {newlyUnlockedDiaries.length > 0 && (
+        <div className="diary-unlock-section">
+          <div className="diary-unlock-title">📖 守钟人日记 · 新的记忆浮现</div>
+          {newlyUnlockedDiaries.map((entry) => (
+            <div key={entry.id} className="diary-unlock-item">
+              <span className="diary-unlock-icon">{entry.icon}</span>
+              <div className="diary-unlock-info">
+                <div className="diary-unlock-name">{entry.title}</div>
+                <div className="diary-unlock-subtitle">{entry.subtitle}</div>
+              </div>
+            </div>
+          ))}
+          {onOpenKeeperDiary && (
+            <button className="diary-unlock-button" onClick={onOpenKeeperDiary}>
+              查看日记 →
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="button-row">
         <button className="restart-btn" onClick={onRestart}>
           {isPatrol ? '再次巡夜' : '再次校时'}

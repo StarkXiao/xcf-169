@@ -848,3 +848,128 @@ export interface FestivalActivityEffects {
   activePeriod: FestivalActivityPeriod | null
   theme: FestivalTheme | null
 }
+
+// ==================== 守钟人日记任务线 (KeeperDiarySystem) ====================
+
+export type DiaryEntryId = string
+
+export type DiaryUnlockConditionType =
+  | 'score_reached'
+  | 'perfect_clear'
+  | 'consecutive_wins'
+  | 'speed_clear'
+  | 'no_fault_clear'
+  | 'total_plays'
+  | 'chapter_unlocked'
+  | 'ending_unlocked'
+  | 'item_collected'
+  | 'flag_set'
+
+export interface DiaryUnlockCondition {
+  type: DiaryUnlockConditionType
+  key?: string
+  value: number | string | boolean
+}
+
+export type SpecialCalibrationType =
+  | 'target_time'
+  | 'tolerance'
+  | 'gear_config'
+  | 'weather_immunity'
+  | 'score_multiplier'
+  | 'time_bonus'
+  | 'fault_resist'
+  | 'hidden_mode'
+
+export interface SpecialCalibrationEffect {
+  type: SpecialCalibrationType
+  value: number | string | boolean
+  description: string
+}
+
+export interface DiaryEntry {
+  id: DiaryEntryId
+  order: number
+  title: string
+  subtitle: string
+  icon: string
+  date: string
+  content: string
+  mood?: 'happy' | 'sad' | 'mysterious' | 'neutral' | 'excited'
+  unlockConditions: DiaryUnlockCondition[]
+  unlockAllRequired?: boolean
+  specialCalibrations: SpecialCalibrationEffect[]
+  isUnlocked: boolean
+  isRead: boolean
+  rewards?: {
+    type: 'score' | 'badge' | 'material' | 'tool' | 'bell_preset'
+    id?: string
+    value?: number
+  }[]
+  relatedChapterId?: string
+  relatedEndingId?: string
+}
+
+export interface KeeperDiaryState {
+  unlockedEntryIds: DiaryEntryId[]
+  readEntryIds: DiaryEntryId[]
+  activeCalibrationIds: DiaryEntryId[]
+  totalDiaryScore: number
+  currentEntryId: DiaryEntryId | null
+  lastEntryUnlockedAt: number
+  flags: Record<string, boolean>
+  stats: {
+    totalPlays: number
+    perfectClears: number
+    consecutiveWins: number
+    bestConsecutiveWins: number
+    fastestClearSeconds: number
+    noFaultClears: number
+  }
+}
+
+export interface DiarySettlementText {
+  success?: {
+    title: string
+    subtitle: string
+    description: string
+  }
+  fail?: {
+    title: string
+    subtitle: string
+    description: string
+  }
+  perfect?: {
+    title: string
+    subtitle: string
+    description: string
+  }
+}
+
+export interface LevelObjective {
+  id: string
+  title: string
+  description: string
+  icon: string
+  isCompleted: boolean
+  progress?: number
+  target?: number
+  reward?: number
+}
+
+export interface DiaryLevelObjective extends LevelObjective {
+  diaryEntryId?: DiaryEntryId
+  specialCondition?: string
+}
+
+export interface KeeperDiaryEffects {
+  activeEntries: DiaryEntry[]
+  combinedEffects: SpecialCalibrationEffect[]
+  scoreMultiplier: number
+  toleranceBonus: number
+  faultResistance: number
+  timeBonusMultiplier: number
+  hasHiddenMode: boolean
+  customTargetTime?: ClockTime
+  customToleranceMinutes?: number
+}
