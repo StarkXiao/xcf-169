@@ -480,14 +480,11 @@ export class KeeperDiarySystem {
       const conditions = entry.unlockConditions
       const allRequired = entry.unlockAllRequired ?? true
 
-      let unlocked = false
-      if (allRequired) {
-        unlocked = conditions.every((c) => this.evaluateCondition(c))
-      } else {
-        unlocked = conditions.some((c) => this.evaluateCondition(c))
-      }
+      const isUnlocked = allRequired
+        ? conditions.every((c) => this.evaluateCondition(c))
+        : conditions.some((c) => this.evaluateCondition(c))
 
-      if (unlocked) {
+      if (isUnlocked) {
         this.state.unlockedEntryIds.push(entry.id)
         this.state.lastEntryUnlockedAt = Date.now()
         newlyUnlocked.push({ ...entry, isUnlocked: true, isRead: false })

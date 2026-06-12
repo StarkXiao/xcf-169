@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 运行类型检查..."
+npx tsc --noEmit
+if [ $? -ne 0 ]; then
+  echo "❌ 类型检查未通过，请修复后再提交"
+  exit 1
+fi
+
+echo "📝 运行代码风格检查..."
+npx lint-staged
+if [ $? -ne 0 ]; then
+  echo "❌ 代码风格检查未通过，请修复后再提交"
+  exit 1
+fi
+
+echo "✅ 提交前检查通过！"
+

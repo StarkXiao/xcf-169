@@ -37,7 +37,6 @@ export class DiaryTargetInjector {
     let timeBonusMultiplier = 1
     let hasHiddenMode = false
     let customTargetTime: ClockTime | undefined
-    let customToleranceMinutes: number | undefined
 
     combinedEffects.forEach((effect) => {
       switch (effect.type) {
@@ -63,10 +62,12 @@ export class DiaryTargetInjector {
           }
           break
         }
+        default:
+          break
       }
     })
 
-    return {
+    const effects: KeeperDiaryEffects = {
       activeEntries,
       combinedEffects,
       scoreMultiplier,
@@ -75,8 +76,9 @@ export class DiaryTargetInjector {
       timeBonusMultiplier,
       hasHiddenMode,
       customTargetTime,
-      customToleranceMinutes,
     }
+
+    return effects
   }
 
   getScoreMultiplier(): number {
