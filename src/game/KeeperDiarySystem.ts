@@ -4,12 +4,13 @@ import type {
   KeeperDiaryState,
   KeeperDiaryEffects,
   DiaryUnlockCondition,
-  SpecialCalibrationEffect,
   DiarySettlementText,
   DiaryLevelObjective,
-  ClockTime,
 } from '../types'
 import { workshopSystem } from './WorkshopSystem'
+import { DiaryTargetInjector } from './modules/DiaryTargetInjector'
+import { DiaryScoreCalculator, type GameResultRecord } from './modules/DiaryScoreCalculator'
+import { DiarySettlementProvider } from './modules/DiarySettlementProvider'
 
 const STORAGE_KEY = 'clocktower_keeper_diary_v1'
 
@@ -220,63 +221,6 @@ export const DIARY_ENTRIES: DiaryEntry[] = [
   },
 ]
 
-export const DIARY_SETTLEMENT_TEXTS: Record<string, DiarySettlementText> = {
-  default: {
-    success: {
-      title: '钟声准时响起！',
-      subtitle: '守钟人，时间已校准',
-      description: '钟声回荡在雨夜中',
-    },
-    fail: {
-      title: '钟声失准了...',
-      subtitle: '暴风雨打乱了时间的节奏',
-      description: '下次再试试吧',
-    },
-    perfect: {
-      title: '完美校准！',
-      subtitle: '零偏差的艺术',
-      description: '时间在你的指尖完美流动',
-    },
-  },
-  diary_001: {
-    success: {
-      title: '初战告捷！',
-      subtitle: '守钟学徒的第一步',
-      description: '你成功完成了第一次校准，钟楼的齿轮为你转动',
-    },
-    fail: {
-      title: '还需努力...',
-      subtitle: '学徒之路漫长',
-      description: '没关系，每个守钟人都是从失败中成长的',
-    },
-  },
-  diary_002: {
-    perfect: {
-      title: '分毫不差！',
-      subtitle: '精准的极致',
-      description: '齿轮仿佛回应了你的意志，时间完美对齐',
-    },
-  },
-  diary_005: {
-    success: {
-      title: '闪电般的速度！',
-      subtitle: '快刀斩乱麻',
-      description: '你以惊人的速度完成了校准',
-    },
-  },
-  diary_008: {
-    success: {
-      title: '大师级校准！',
-      subtitle: '传承的证明',
-      description: '历代守钟人的意志，在你手中延续',
-    },
-    perfect: {
-      title: '完美的传承！',
-      subtitle: '超越时空的技艺',
-      description: '你已经达到了守钟人的最高境界',
-    },
-  },
-}
 
 export const DIARY_LEVEL_OBJECTIVES: DiaryLevelObjective[] = [
   {
@@ -366,9 +310,30 @@ export const DIARY_LEVEL_OBJECTIVES: DiaryLevelObjective[] = [
 
 export class KeeperDiarySystem {
   private state: KeeperDiaryState
+  private targetInjector: DiaryTargetInjector
+  private scoreCalculator: DiaryScoreCalculator
+  private settlementProvider: DiarySettlementProvider
 
   constructor() {
     this.state = this.loadState()
+
+    this.targetInjector = new DiaryTargetInjector(
+      (id) => this.getEntry(id),
+      () => this.getActiveCalibrationIds(),
+    )
+
+    this.scoreCalculator = new DiaryScoreCalculator(
+      () => this.getState(),
+      (updater) => updater(this.state),
+      () => this.targetInjector.getEffects(),
+      () => this.saveState(),
+      () => this.checkUnlocks(),
+    )
+
+    this.settlementProvider = new DiarySettlementProvider(
+      () => this.state.currentEntryId,
+    )
+
     this.checkUnlocks()
   }
 
@@ -440,7 +405,7 @@ export class KeeperDiarySystem {
       if (entry?.rewards) {
         entry.rewards.forEach((reward) => {
           if (reward.type === 'score' && reward.value) {
-            this.state.totalDiaryScore += reward.value
+            this.scoreCalculator.addDiaryScore(reward.value)
           }
         })
       }
@@ -472,61 +437,11 @@ export class KeeperDiarySystem {
   }
 
   getEffects(): KeeperDiaryEffects {
-    const activeEntries = this.state.activeCalibrationIds
-      .map((id) => this.getEntry(id))
-      .filter((e): e is DiaryEntry => !!e && e.specialCalibrations.length > 0)
+    return this.targetInjector.getEffects()
+  }
 
-    const combinedEffects: SpecialCalibrationEffect[] = []
-    activeEntries.forEach((entry) => {
-      combinedEffects.push(...entry.specialCalibrations)
-    })
-
-    let scoreMultiplier = 1
-    let toleranceBonus = 0
-    let faultResistance = 0
-    let timeBonusMultiplier = 1
-    let hasHiddenMode = false
-    let customTargetTime: ClockTime | undefined
-    let customToleranceMinutes: number | undefined
-
-    combinedEffects.forEach((effect) => {
-      switch (effect.type) {
-        case 'score_multiplier':
-          scoreMultiplier *= typeof effect.value === 'number' ? effect.value : 1
-          break
-        case 'tolerance':
-          toleranceBonus += typeof effect.value === 'number' ? effect.value : 0
-          break
-        case 'fault_resist':
-          faultResistance += typeof effect.value === 'number' ? effect.value : 0
-          break
-        case 'time_bonus':
-          timeBonusMultiplier *= typeof effect.value === 'number' ? effect.value : 1
-          break
-        case 'hidden_mode':
-          hasHiddenMode = hasHiddenMode || effect.value === true
-          break
-        case 'target_time': {
-          if (typeof effect.value === 'string') {
-            const [h, m] = effect.value.split(':').map(Number)
-            customTargetTime = { hours: h, minutes: m }
-          }
-          break
-        }
-      }
-    })
-
-    return {
-      activeEntries,
-      combinedEffects,
-      scoreMultiplier,
-      toleranceBonus,
-      faultResistance: Math.min(faultResistance, 0.5),
-      timeBonusMultiplier,
-      hasHiddenMode,
-      customTargetTime,
-      customToleranceMinutes,
-    }
+  getTargetInjector(): DiaryTargetInjector {
+    return this.targetInjector
   }
 
   private evaluateCondition(condition: DiaryUnlockCondition): boolean {
@@ -587,43 +502,20 @@ export class KeeperDiarySystem {
   }
 
   recordGameResult(success: boolean, score: number, timeUsed: number, isPerfect: boolean, hadFaults: boolean): void {
-    this.state.stats.totalPlays += 1
+    const record: GameResultRecord = { success, score, timeUsed, isPerfect, hadFaults }
+    this.scoreCalculator.recordGameResult(record)
+  }
 
-    if (success) {
-      this.state.stats.consecutiveWins += 1
-      if (this.state.stats.consecutiveWins > this.state.stats.bestConsecutiveWins) {
-        this.state.stats.bestConsecutiveWins = this.state.stats.consecutiveWins
-      }
-
-      if (isPerfect) {
-        this.state.stats.perfectClears += 1
-      }
-
-      if (!hadFaults) {
-        this.state.stats.noFaultClears += 1
-      }
-
-      if (timeUsed < this.state.stats.fastestClearSeconds) {
-        this.state.stats.fastestClearSeconds = timeUsed
-      }
-    } else {
-      this.state.stats.consecutiveWins = 0
-    }
-
-    const effects = this.getEffects()
-    const finalScore = Math.floor(score * effects.scoreMultiplier)
-    this.state.totalDiaryScore += finalScore
-
-    this.saveState()
-    this.checkUnlocks()
+  getScoreCalculator(): DiaryScoreCalculator {
+    return this.scoreCalculator
   }
 
   getSettlementText(entryId?: DiaryEntryId | null): DiarySettlementText {
-    const id = entryId || this.state.currentEntryId
-    if (id && DIARY_SETTLEMENT_TEXTS[id]) {
-      return DIARY_SETTLEMENT_TEXTS[id]
-    }
-    return DIARY_SETTLEMENT_TEXTS.default
+    return this.settlementProvider.getSettlementText(entryId)
+  }
+
+  getSettlementProvider(): DiarySettlementProvider {
+    return this.settlementProvider
   }
 
   getLevelObjectives(): DiaryLevelObjective[] {
@@ -679,11 +571,11 @@ export class KeeperDiarySystem {
   }
 
   getTotalDiaryScore(): number {
-    return this.state.totalDiaryScore
+    return this.scoreCalculator.getTotalDiaryScore()
   }
 
   getStats(): KeeperDiaryState['stats'] {
-    return { ...this.state.stats }
+    return this.scoreCalculator.getStats()
   }
 
   setFlag(key: string, value: boolean): void {
@@ -702,6 +594,7 @@ export class KeeperDiarySystem {
       stats: { ...DEFAULT_STATE.stats },
       flags: { ...DEFAULT_STATE.flags },
     }
+    this.scoreCalculator.resetStats()
     this.saveState()
   }
 
