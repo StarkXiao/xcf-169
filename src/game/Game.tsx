@@ -169,6 +169,133 @@ function Game({ onGameEnd, mode }: GameProps) {
     }, 2000)
   }, [gameEnded, onGameEnd])
 
+  const handleExitTour = useCallback(() => {
+    const scene = sceneRef.current
+    if (scene) {
+      scene.disableTourMode()
+      scene.resetTourCamera()
+    }
+
+    const state = tourSystem.getState()
+    tourSystem.endTour()
+
+    const finalResult: GameResult = {
+      success: true,
+      score: state.totalScoreEarned,
+      timeLeft: 0,
+    }
+
+    setTourActive(false)
+    setCurrentTourHotspot(null)
+    onGameEnd(finalResult)
+  }, [onGameEnd])
+
+  const handleTourHotspotClick = useCallback((hotspotId: string) => {
+    tourSystem.enterHotspot(hotspotId)
+    const state = tourSystem.getState()
+    setTourState({ ...state })
+    setTourProgress(tourSystem.getProgress())
+
+    const hotspot = tourSystem.getHotspot(hotspotId)
+    if (hotspot) {
+      setCurrentTourHotspot(hotspot)
+      sceneRef.current?.highlightTourHotspot(hotspotId)
+
+      if (hotspot.category === 'exit') {
+        setTimeout(() => {
+          handleExitTour()
+        }, 2000)
+      }
+
+      if (hotspot.connectedHotspotIds) {
+        const relatedPath = tourSystem
+          .getPaths()
+          .find((p) =>
+            p.relatedGearIds.some((gid) =>
+              hotspot.connectedHotspotIds!.some((hid) =>
+                hid.includes(gid.toString()),
+              ),
+            ),
+          )
+        if (relatedPath) {
+          sceneRef.current?.highlightTourPath(relatedPath.id)
+        }
+      }
+
+      if (hotspot.rewardScore && hotspot.rewardScore > 0) {
+        sceneRef.current?.playTourDiscoveryAnimation({
+          x: hotspot.x,
+          y: hotspot.y,
+        })
+      }
+    }
+  }, [handleExitTour])
+
+  const activateTourMode = useCallback(
+    (
+      scene: MainScene | null,
+      calibratedTime: ClockTime,
+      earnedScore: number,
+    ) => {
+      if (!scene) {
+        onGameEnd({
+          success: true,
+          score: earnedScore,
+          timeLeft: 0,
+        })
+        return
+      }
+
+      tourSystem.unlockTour()
+      tourSystem.loadFromStorage()
+      tourSystem.startTour()
+
+      const tourStateNow = tourSystem.getState()
+      tourStateNow.time = calibratedTime
+      setTourState({ ...tourStateNow })
+      setTourProgress(tourSystem.getProgress())
+
+      const hotspotsForScene = tourSystem.getVisibleHotspots().map((h) => ({
+        id: h.id,
+        x: h.x,
+        y: h.y,
+        radius: h.radius,
+        icon: h.icon,
+        name: h.displayName,
+        isVisited: tourStateNow.visitedHotspotIds.includes(h.id),
+        isSecret: !!h.isSecret,
+        category: h.category,
+        order: h.order,
+      }))
+
+      const pathsForScene = tourSystem.getVisiblePaths().map((p) => ({
+        id: p.id,
+        points: p.points,
+        color: p.color,
+        glowColor: p.glowColor,
+      }))
+
+      const pathsCache: Record<string, Array<{ x: number; y: number }>> = {}
+      pathsForScene.forEach((p) => {
+        pathsCache[p.id] = p.points
+      })
+
+      scene.setTourCallbacks((hotspotId: string) => {
+        handleTourHotspotClick(hotspotId)
+      })
+      scene.setTourPathsCache(pathsCache)
+      scene.enableTourMode(hotspotsForScene, pathsForScene)
+
+      setCurrentTourHotspot(null)
+      setTourActive(true)
+      setGameEnded(true)
+
+      soundRef.current?.stopRain()
+      soundRef.current?.stopWind()
+    },
+    [onGameEnd, handleTourHotspotClick],
+  )
+
   const handleGameEnd = useCallback((success: boolean) => {
     if (gameEnded) return
 
@@ -288,134 +415,7 @@ function Game({ onGameEnd, mode }: GameProps) {
         totalDeviation: diffMinutes,
       })
     }, 3000)
-  }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode, totalTime])
-
-  const activateTourMode = useCallback(
-    (
-      scene: MainScene | null,
-      calibratedTime: ClockTime,
-      earnedScore: number,
-    ) => {
-      if (!scene) {
-        onGameEnd({
-          success: true,
-          score: earnedScore,
-          timeLeft: 0,
-        })
-        return
-      }
-
-      tourSystem.unlockTour()
-      tourSystem.loadFromStorage()
-      tourSystem.startTour()
-
-      const tourStateNow = tourSystem.getState()
-      tourStateNow.time = calibratedTime
-      setTourState({ ...tourStateNow })
-      setTourProgress(tourSystem.getProgress())
-
-      const hotspotsForScene = tourSystem.getVisibleHotspots().map((h) => ({
-        id: h.id,
-        x: h.x,
-        y: h.y,
-        radius: h.radius,
-        icon: h.icon,
-        name: h.displayName,
-        isVisited: tourStateNow.visitedHotspotIds.includes(h.id),
-        isSecret: !!h.isSecret,
-        category: h.category,
-        order: h.order,
-      }))
-
-      const pathsForScene = tourSystem.getVisiblePaths().map((p) => ({
-        id: p.id,
-        points: p.points,
-        color: p.color,
-        glowColor: p.glowColor,
-      }))
-
-      const pathsCache: Record<string, Array<{ x: number; y: number }>> = {}
-      pathsForScene.forEach((p) => {
-        pathsCache[p.id] = p.points
-      })
-
-      scene.setTourCallbacks((hotspotId: string) => {
-        handleTourHotspotClick(hotspotId)
-      })
-      scene.setTourPathsCache(pathsCache)
-      scene.enableTourMode(hotspotsForScene, pathsForScene)
-
-      setCurrentTourHotspot(null)
-      setTourActive(true)
-      setGameEnded(true)
-
-      soundRef.current?.stopRain()
-      soundRef.current?.stopWind()
-    },
-    [onGameEnd],
-  )
-
-  const handleTourHotspotClick = useCallback((hotspotId: string) => {
-    tourSystem.enterHotspot(hotspotId)
-    const state = tourSystem.getState()
-    setTourState({ ...state })
-    setTourProgress(tourSystem.getProgress())
-
-    const hotspot = tourSystem.getHotspot(hotspotId)
-    if (hotspot) {
-      setCurrentTourHotspot(hotspot)
-      sceneRef.current?.highlightTourHotspot(hotspotId)
-
-      if (hotspot.category === 'exit') {
-        setTimeout(() => {
-          handleExitTour()
-        }, 2000)
-      }
-
-      if (hotspot.connectedHotspotIds) {
-        const relatedPath = tourSystem
-          .getPaths()
-          .find((p) =>
-            p.relatedGearIds.some((gid) =>
-              hotspot.connectedHotspotIds!.some((hid) =>
-                hid.includes(gid.toString()),
-              ),
-            ),
-          )
-        if (relatedPath) {
-          sceneRef.current?.highlightTourPath(relatedPath.id)
-        }
-      }
-
-      if (hotspot.rewardScore && hotspot.rewardScore > 0) {
-        sceneRef.current?.playTourDiscoveryAnimation({
-          x: hotspot.x,
-          y: hotspot.y,
-        })
-      }
-    }
-  }, [])
-
-  const handleExitTour = useCallback(() => {
-    const scene = sceneRef.current
-    if (scene) {
-      scene.disableTourMode()
-      scene.resetTourCamera()
-    }
-
-    const state = tourSystem.getState()
-    tourSystem.endTour()
-
-    const finalResult: GameResult = {
-      success: true,
-      score: state.totalScoreEarned,
-      timeLeft: 0,
-    }
-
-    setTourActive(false)
-    setCurrentTourHotspot(null)
-    onGameEnd(finalResult)
-  }, [onGameEnd])
+  }, [gameEnded, onGameEnd, calculateClassicScore, isPatrolMode, totalTime, activateTourMode])
 
   const handleTourStateChange = useCallback(() => {
     setTourState(tourSystem.getState())

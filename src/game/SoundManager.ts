@@ -1051,7 +1051,9 @@ export class SoundManager {
           try {
             o.stop()
             o.disconnect()
-          } catch {}
+          } catch (_e) {
+            // Ignore oscillator cleanup errors
+          }
         })
         scheduledTimeouts.forEach((t) => window.clearTimeout(t))
       },

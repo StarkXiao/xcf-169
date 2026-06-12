@@ -15,16 +15,16 @@ function TrainingPanel({ onClose, onStartLesson }: TrainingPanelProps) {
   const [unlockedBadges, setUnlockedBadges] = useState<TrainingBadge[]>(trainingSystem.getUnlockedBadges())
   const [activeTab, setActiveTab] = useState<'lessons' | 'badges' | 'progress'>('lessons')
 
-  useEffect(() => {
-    refreshProgress()
-  }, [])
-
   const refreshProgress = () => {
     setProgress(trainingSystem.getProgress())
     setCurrentLevel(trainingSystem.getCurrentLevel())
     setLessons(trainingSystem.getAllLessons())
     setUnlockedBadges(trainingSystem.getUnlockedBadges())
   }
+
+  useEffect(() => {
+    refreshProgress()
+  }, [])
 
   const formatScore = (score: number): string => {
     if (score >= 10000) return `${(score / 10000).toFixed(1)}万`
